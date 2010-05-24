@@ -1,6 +1,8 @@
 use MooseX::Declare;
 
-class Gat::Schema::Asset with KiokuDB::Role::ID {
+class Gat::Schema::Asset
+    with KiokuDB::Role::ID
+{
     our $VERSION   = 0.001;
     our $AUTHORITY = 'cpan:DHARDISON';
 
@@ -8,9 +10,9 @@ class Gat::Schema::Asset with KiokuDB::Role::ID {
     use MooseX::Types::Moose ':all';
     use KiokuDB::Util qw( weak_set set );
 
-    use Gat::Types 'Name';
+    use Gat::Types 'Label', 'Checksum';
 
-    has '_names' => (
+    has '_labels' => (
         is       => 'ro',
         init_arg => undef,
         default  => sub { set() },
@@ -18,30 +20,25 @@ class Gat::Schema::Asset with KiokuDB::Role::ID {
 
     has 'checksum' => (
         is       => 'rw',
-        isa      => Str,
+        isa      => Checksum,
         required => 1,
     );
 
-    method names() {
-        my @names = $self->_names->members;
-        return wantarray ? @names : \@names;
-    }
-
-    method files() {
-        my @files = map { $_->filename } $self->_names->members;
+    method filenames() {
+        my @files = map { $_->filename } $self->_labels->members;
         return wantarray ? @files : \@files;
     }
 
-    method add_name(Name $name) {
-        $self->_names->insert($name);
+    method add_label(Label $name) {
+        $self->_labels->insert($name);
     }
 
-    method del_name(Name $name) {
-        $self->_names->remove($name);
+    method remove_label(Label $name) {
+        $self->_labels->remove($name);
     }
 
-    method has_name(Name $name) {
-        return $self->_names->contains($name);
+    method has_label(Label $name) {
+        return $self->_labels->contains($name);
     }
 
     method kiokudb_object_id {
