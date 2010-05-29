@@ -56,7 +56,7 @@ foo: {
 
     {
         my $scope = $model->new_scope;
-        is($model->remove_file( file('foo') ), '9ca5b5da2a7cb73eb04afc7ecfbd1912');
+        is($model->drop_file( file('foo') ), '9ca5b5da2a7cb73eb04afc7ecfbd1912');
         ok(!$model->lookup_label(file('foo')), 'gone');
     }
 }

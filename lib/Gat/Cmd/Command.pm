@@ -16,27 +16,30 @@ class Gat::Cmd::Command
         is         => 'ro',
         isa        => 'Gat::Container',
         lazy_build => 1,
+        handles    => ['app'],
     );
 
     has 'directory' => (
+        traits  => [ 'Getopt' ],
         is      => 'ro',
         isa     => Dir,
         coerce  => 1,
         default => sub {cwd},
+        cmd_aliases => ['C'],
     );
 
 
     method _build_container { 
         return Gat::Container->new(
-            directory => $self->directory,
+            work_dir => $self->directory,
         );
     }
 
     method execute(HashRef $opts, ArrayRef $args) {
-        my $api = $self->container->fetch('api')->get;
-        $api->txn_do(
+        my $gat = $self->app;
+        $gat->txn_do(
             sub {
-                $self->invoke($api, @$args);
+                $self->invoke($gat, @$args);
             }
         );
     }

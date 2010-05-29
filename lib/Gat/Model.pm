@@ -14,6 +14,7 @@ class Gat::Model
     use Gat::Schema::Asset;
     use Gat::Schema::Label;
     use Gat::Types 'Checksum';
+    use Gat::Error;
 
     method lookup_label(File $file)         { return $self->lookup("label:$file")  }
     method lookup_asset(Checksum $checksum) { return $self->lookup("asset:$checksum") }
@@ -42,9 +43,9 @@ class Gat::Model
         $self->store($asset);
     }
 
-    method remove_file(File $file) {
+    method drop_file(File $file) {
         my $label = $self->lookup_label($file);
-        confess "unknown file: $file" unless $label;
+        Gat::Error->throw( message => "$file is unknown to gat" ) unless $label;
 
         my $asset = $label->asset;
         $label->asset(undef);
@@ -54,5 +55,20 @@ class Gat::Model
         $self->delete( $label );
 
         return $asset->checksum;
+    }
+
+    method manifest() {
+        Data::Stream::Bulk::Filter->new(
+            filter => sub {
+                my @res;
+                for my $item (@$_) {
+                    if ($item->isa('Gat::Schema::Asset')) {
+                        push @res, map { [ $item->checksum, $_ ] } $item->files;
+                    }
+                }
+                return \@res;
+            },
+            stream => $self->root_set,
+        );
     }
 }

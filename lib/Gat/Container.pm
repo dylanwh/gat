@@ -7,93 +7,85 @@ class Gat::Container
     our $VERSION   = 0.001;
     our $AUTHORITY = 'cpan:DHARDISON';
 
-    use TryCatch;
     use Bread::Board;
     use MooseX::Types::Path::Class 'Dir';
 
-    use Gat::Store;
-    use Gat::Model;
-    use Gat::Config;
-    use Gat::API;
+    use Gat;
+    use Gat::Storage::Directory;
+    use Gat::Types ':all';
 
     has '+name' => ( default => 'Gat' );
 
-    has 'directory' => (
+    has 'work_dir' => (
         is       => 'ro',
-        isa      => Dir,
+        isa      => AbsoluteDir,
         coerce   => 1,
         required => 1,
     );
 
     method BUILD {
-        my $work_dir    = $self->directory;
-        my $gat_dir     = $work_dir->subdir('.gat');
-        my $store_dir   = $gat_dir->subdir('store');
-        my $model_dir   = $gat_dir->subdir('model');
-        my $config_file = $gat_dir->file('config');
+        my $work_dir = $self->work_dir;
+        my $gat_dir  = $work_dir->subdir('.gat');
 
         $gat_dir->mkpath;
         
         container $self => as {
-            service 'config_file' => $config_file;
-            service 'storage_dir' => $store_dir;
-            service 'work_dir'    => $work_dir;
+            container "config" => as {
+                service digest_type  => 'MD5';
+                service use_symlinks => 1;
+                service rules        => [];
+                service rule_default => 1;
+            };
 
-            service 'dsn'         => 'bdb:dir=' . $model_dir->absolute;
-            service 'extra_args'  => { create => 1 };
+            container database => as {
+                service dsn        => 'bdb:dir=' . $gat_dir->subdir('model');
+                service extra_args => { create => 1 };
+                service model => (
+                    class        => 'Gat::Model',
+                    lifecycle    => 'Singleton',
+                    dependencies => wire_names(qw[ dsn extra_args ]),
+                );
+            };
 
-            service 'digest_type' => (
-                block => sub {
-                    my $s = shift;
-                    return $s->param('config')->digest_type;
-                },
-                dependencies => wire_names('config'),
-            );
-            
-            service 'rules' => (
-                block => sub {
-                    my $s = shift;
-                    return [ map { [ qr/$_->[0]/ => $_->[1] ] } @{ $s->param('config')->rules } ];
-                },
-                dependencies => wire_names('config'),
-            );
+            container filesystem => as {
+                service work_dir     => $work_dir;
+                service gat_dir      => $gat_dir;
+                service storage_dir  => $gat_dir->subdir('storage');
 
-            service 'config' => (
-                block => sub {
-                    my $s = shift;
+                service storage => (
+                    class        => 'Gat::Storage::Directory',
+                    dependencies => {
+                        digest_type  => depends_on('/config/digest_type'),
+                        use_symlinks => depends_on('/config/use_symlinks'),
+                        storage_dir  => depends_on('storage_dir'),
+                    },
+                );
 
-                    my $config;
-                    try {
-                        $config = Gat::Config->load(
-                            $s->param('config_file') . "",
-                        );
-                    }
-                    catch (Any $e) {
-                        $config = Gat::Config->new;
-                    }
-                    return $config;
-                },
-                dependencies => wire_names('config_file'),
-            );
+                service selector => (
+                    class        => 'Gat::Selector',
+                    dependencies => {
+                        work_dir     => depends_on('work_dir'),
+                        gat_dir      => depends_on('gat_dir'),
+                        rules        => depends_on('/config/rules'),
+                        rule_default => depends_on('/config/rule_default'),
+                    },
+                );
+            };
 
-            service store => (
-                class        => 'Gat::Store',
+            service app => (
+                class        => 'Gat',
                 lifecycle    => 'Singleton',
-                dependencies => wire_names( qw[ digest_type storage_dir work_dir rules ]),
+                dependencies => {
+                    storage   => depends_on('filesystem/storage'),
+                    selector  => depends_on('filesystem/selector'),
+                    model     => depends_on('database/model'),
+                },
             );
 
-            service model => (
-                class        => 'Gat::Model',
-                lifecycle    => 'Singleton',
-                dependencies => wire_names(qw[ dsn extra_args ]),
-            );
-
-            service api => (
-                class        => 'Gat::API',
-                lifecycle    => 'Singleton',
-                dependencies => wire_names(qw[ model store config config_file ]),
-            );
+            my $config_file = $gat_dir->file('config');
+            include $config_file if -f $config_file;
         };
     }
 
+    method app { $self->fetch('app')->get }
 }

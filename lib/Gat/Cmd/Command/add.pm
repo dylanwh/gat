@@ -7,10 +7,24 @@ class Gat::Cmd::Command::add
     our $VERSION = 0.001;
     our $AUTHORITY = 'cpan:DHARDISON';
 
-    use Gat::API;
     use Path::Class;
+    use MooseX::Types::Path::Class 'File';
+    use Data::Stream::Bulk::Path::Class;
 
-    method invoke(Gat::API $api, @args) {
-        $api->add( [ map { file($_) } @args ] );
+    method invoke(Gat $gat, @args) {
+        my $file = file(shift @args);
+        say $gat->add($file) ? "added $file" : "failed to add $file";
     }
 }
+
+__END__
+
+=head1 NAME
+
+Gat::Cmd::Command::add - insert a file into the gat store.
+
+=head1 SYNOPSIS
+
+    gat add file [file2 [dir...]]
+
+

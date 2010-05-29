@@ -24,7 +24,7 @@ class Gat::Schema::Asset
         required => 1,
     );
 
-    method filenames() {
+    method files() {
         my @files = map { $_->filename } $self->_labels->members;
         return wantarray ? @files : \@files;
     }
