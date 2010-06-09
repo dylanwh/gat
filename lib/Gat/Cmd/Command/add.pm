@@ -1,18 +1,23 @@
+package Gat::Cmd::Command::add;
 use feature 'say';
-use MooseX::Declare;
+use Moose;
+use namespace::autoclean;
 
-class Gat::Cmd::Command::add
-    extends Gat::Cmd::Command
-{
-    use Path::Class;
-    use MooseX::Types::Path::Class 'File';
-    use Data::Stream::Bulk::Path::Class;
+extends 'Gat::Cmd::Command';
 
-    method invoke(Gat $gat, @args) {
-        my $file = file(shift @args);
-        say $gat->add($file) ? "added $file" : "failed to add $file";
-    }
+use Path::Class;
+use MooseX::Types::Path::Class 'File';
+use Data::Stream::Bulk::Path::Class;
+
+sub invoke {
+    my ($self, $gat, @args) = @_;
+    my $file = file(shift @args);
+    say $gat->add($file) ? "added $file" : "failed to add $file";
 }
+
+__PACKAGE__->meta->make_immutable;
+
+1;
 
 __END__
 

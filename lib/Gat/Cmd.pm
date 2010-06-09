@@ -1,7 +1,9 @@
-use MooseX::Declare;
+package Gat::Cmd;
+use Moose;
+use namespace::autoclean;
 
-class Gat::Cmd
-    extends MooseX::App::Cmd
-{
-    method api() { return $self->fetch('api')->get }
-}
+extends 'MooseX::App::Cmd';
+
+__PACKAGE__->meta->make_immutable;
+
+1;

@@ -1,22 +1,27 @@
-use MooseX::Declare;
+package Gat::Storage::API;
 
-role Gat::Storage::API {
-    use MooseX::Types::Path::Class 'File';
-    use MooseX::Types::Moose 'Str';
-    use Digest;
+use Moose::Role;
+use namespace::autoclean;
 
-    has 'digest_type' => (
-        is      => 'ro',
-        isa     => Str,
-        default => 'SHA1',
-    );
+use MooseX::Types::Path::Class 'File';
+use MooseX::Types::Moose 'Str';
+use Digest;
 
-    method _compute_checksum(File $file) {
-        my $digest = Digest->new($self->digest_type);
-        my $fh     = $file->openr;
-        $digest->addfile($fh);
-        return $digest->hexdigest;
-    }
+has 'digest_type' => (
+    is      => 'ro',
+    isa     => Str,
+    default => 'MD5',
+);
 
-    requires 'insert', 'link', 'unlink', 'check', 'assets';
+requires 'insert', 'link', 'unlink', 'check', 'assets';
+
+sub _compute_checksum {
+    my ($self, $file) = @_;
+
+    my $digest = Digest->new($self->digest_type);
+    my $fh     = $file->openr;
+    $digest->addfile($fh);
+    return $digest->hexdigest;
 }
+
+1;

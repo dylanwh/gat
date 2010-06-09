@@ -1,4 +1,5 @@
-use 5.10.0;
-use MooseX::Declare;
+package Gat::Error;
+use Moose;
+extends 'Throwable::Error';
 
-class Gat::Error extends Throwable::Error is mutable { }
+1;

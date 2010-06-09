@@ -1,20 +1,25 @@
+package Gat::Cmd::Command::manifest;
 use feature 'say';
-use MooseX::Declare;
+use Moose;
+use namespace::autoclean;
 
-class Gat::Cmd::Command::manifest
-    extends Gat::Cmd::Command
-{
-    use Gat;
-    use Path::Class;
+extends 'Gat::Cmd::Command';
 
-    method invoke(Gat $gat, @args) {
-        my $model  = $gat->model;
-        my $stream = $model->manifest;
-        until ( $stream->is_done ) {
-            for my $item ( $stream->items ) {
-                printf "%s  %s\n", @$item;
-            }
+use Gat;
+use Path::Class;
+
+sub invoke {
+    my ($self, $gat, @args) = @_;
+    my $model  = $gat->model;
+    my $stream = $model->manifest;
+
+    until ( $stream->is_done ) {
+        for my $item ( $stream->items ) {
+            printf "%s  %s\n", @$item;
         }
     }
 }
 
+__PACKAGE__->meta->make_immutable;
+
+1;
