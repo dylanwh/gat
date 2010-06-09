@@ -1,15 +1,14 @@
 use MooseX::Declare;
 
 class Gat {
-    our $VERSION = 0.01;
-    our $AUTHORITY = 'cpan:DHARDISON';
-
+    # ABSTRACT: glorious asset tracker
     use MooseX::Types::Path::Class 'File';
+    use Guard;
+    use Cwd;
 
     use Gat::Storage::API;
     use Gat::Model;
     use Gat::Selector;
-
     use Gat::Types ':all';
 
     has 'model' => (
@@ -30,48 +29,54 @@ class Gat {
         required => 1,
     );
 
+    has 'work_dir' => (
+        is       => 'ro',
+        isa      => AbsoluteDir,
+        required => 1,
+    );
+
     method txn_do(CodeRef $code) {
+        my $dir = cwd;
+        scope_guard { chdir $dir };
+        chdir $self->work_dir;
         $self->model->txn_do($code, scope => 1);
     }
 
     method add(File $file) {
-        unless ($self->selector->match($file)) {
-            $self->logger->error("Can't add $file");
-            return 0;
-        }
+        $self->selector->assert($file);
 
         unless (-f $file) {
-            $self->logger->error("$file is not a regular file!");
-            return 0;
+            Gat::Error->throw(message => "$file is not a regular file!");
         }
 
         my $checksum = $self->storage->insert($file);
         $self->model->add_file($file, $checksum);
         $self->storage->link($file, $checksum);
-
-        $self->logger->info("Added $file ($checksum)");
-        return 1;
     }
 
     method drop(File $file) {
-        if ($self->selector->match($file)) {
-            my $checksum = $self->model->drop_file($file);
-            $self->storage->unlink($file, $checksum);
-            return 1;
-        }
-        else {
-            return 0;
-        }
+        $self->selector->assert($file);
+
+        my $checksum = $self->model->drop_file($file);
+        $self->storage->unlink($file, $checksum);
     }
     
     method restore(File $file) {
-        if ($self->selector->match($file)) {
-        }
-        else {
-            return 0;
-        }
+        $self->selector->assert($file);
+        my $label = $self->model->lookup_label($file);
+        Gat::Error->throw(message => "$file is unkown to gat") unless $label;
+        Gat::Error->throw(message => "$file exists") if -e $file;
+        $self->storage->link($file, $label->checksum);
     }
 
     method gc() { }
 
 }
+
+__END__
+
+=head1 NAME
+
+Gat - A Glorious Asset Tracker
+
+

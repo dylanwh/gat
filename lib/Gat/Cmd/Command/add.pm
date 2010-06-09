@@ -4,9 +4,6 @@ use MooseX::Declare;
 class Gat::Cmd::Command::add
     extends Gat::Cmd::Command
 {
-    our $VERSION = 0.001;
-    our $AUTHORITY = 'cpan:DHARDISON';
-
     use Path::Class;
     use MooseX::Types::Path::Class 'File';
     use Data::Stream::Bulk::Path::Class;

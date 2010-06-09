@@ -9,10 +9,6 @@ use MooseX::Types -declare => [
 use MooseX::Types::Moose ':all';
 use MooseX::Types::Path::Class 'File', 'Dir';
 
-our $VERSION = 0.001;
-our $AUTHORITY = 'cpan:DHARDISON';
-
-
 class_type Label, { class => 'Gat::Schema::Label' };
 class_type Asset, { class => 'Gat::Schema::Asset' };
 
@@ -36,8 +32,5 @@ coerce  RelativeDir, from Str, via   { Path::Class::Dir->new($_)->relative };
 subtype RelativeFile, as File,   where { $_->is_relative };
 coerce  RelativeFile, from File, via   { $_->relative };
 coerce  RelativeFile, from Str,  via   { Path::Class::File->new($_)->relative };
-
-
-
 
 1;

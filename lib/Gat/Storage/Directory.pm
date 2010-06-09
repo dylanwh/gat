@@ -3,9 +3,6 @@ use MooseX::Declare;
 class Gat::Storage::Directory
     with Gat::Storage::API
 {
-    our $VERSION = 0.001;
-    our $AUTHORITY = 'cpan:DHARDISON';
-
     use File::Copy::Reliable 'move_reliable';
 
     use MooseX::Types::Path::Class 'File';

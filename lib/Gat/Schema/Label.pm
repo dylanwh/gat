@@ -1,9 +1,6 @@
 use MooseX::Declare;
 
 class Gat::Schema::Label with KiokuDB::Role::ID {
-    our $VERSION   = 0.001;
-    our $AUTHORITY = 'cpan:DHARDISON';
-
     use MooseX::Types::Path::Class 'File';
     use MooseX::Types::Moose ':all';
     use Gat::Types 'Asset';

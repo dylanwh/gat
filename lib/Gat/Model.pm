@@ -3,9 +3,6 @@ use MooseX::Declare;
 class Gat::Model
     extends KiokuX::Model
 {
-    our $VERSION   = 0.001;
-    our $AUTHORITY = 'cpan:DHARDISON';
-
     use MooseX::Types::Path::Class 'File', 'Dir';
     use MooseX::Types::Moose ':all';
     use Digest;

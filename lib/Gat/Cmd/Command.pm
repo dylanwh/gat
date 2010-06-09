@@ -4,12 +4,11 @@ class Gat::Cmd::Command
     extends MooseX::App::Cmd::Command 
     with MooseX::Getopt::Dashes 
 {
-    our $VERSION = 0.001;
-    our $AUTHORITY = 'cpan:DHARDISON';
-
-    use Gat::Container;
+    use TryCatch;
     use Cwd;
     use MooseX::Types::Path::Class 'Dir';
+
+    use Gat::Container;
 
     has 'container' => (
         traits     => ['NoGetopt'],
@@ -37,11 +36,17 @@ class Gat::Cmd::Command
 
     method execute(HashRef $opts, ArrayRef $args) {
         my $gat = $self->app;
-        $gat->txn_do(
-            sub {
-                $self->invoke($gat, @$args);
-            }
-        );
+        try {
+            $gat->txn_do(
+                sub {
+                    $self->invoke($gat, @$args);
+                }
+            );
+        }
+        catch (Gat::Error $err) {
+            warn $err->message, "\n";
+            exit 1;
+        }
     }
 
 }

@@ -1,9 +1,6 @@
 use MooseX::Declare;
 
 class Gat::Selector {
-    our $VERSION = 0.001;
-    our $AUTHORITY = 'cpan:DHARDISON';
-
     use MooseX::Types::Moose ':all';
     use MooseX::Types::Structured 'Tuple';
     use MooseX::Types::Path::Class ':all';
@@ -55,4 +52,9 @@ class Gat::Selector {
         return $rule ? $rule->[1] : $self->rule_default;
     }
 
+    method assert(File $file is coerce) {
+        unless ($self->match($file)) {
+            Gat::Error->throw(message => "gat has been configured to ignore $file");
+        }
+    }
 }

@@ -1,9 +1,6 @@
 use MooseX::Declare;
 
 role Gat::Storage::API {
-    our $VERSION = 0.001;
-    our $AUTHORITY = 'cpan:DHARDISON';
-
     use MooseX::Types::Path::Class 'File';
     use MooseX::Types::Moose 'Str';
     use Digest;

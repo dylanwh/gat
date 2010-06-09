@@ -4,9 +4,6 @@ use MooseX::Declare;
 class Gat::Cmd::Command::manifest
     extends Gat::Cmd::Command
 {
-    our $VERSION = 0.001;
-    our $AUTHORITY = 'cpan:DHARDISON';
-
     use Gat;
     use Path::Class;
 
