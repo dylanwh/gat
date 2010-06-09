@@ -1,5 +1,7 @@
 package Gat::Storage::API;
 
+# ABSTRACT: The abstract storage API (handles physical file operations)
+
 use Moose::Role;
 use namespace::autoclean;
 

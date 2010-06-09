@@ -1,4 +1,7 @@
 package Gat::Model;
+
+# ABSTRACT: Maintains the gat metadata
+
 use Moose;
 use namespace::autoclean;
 

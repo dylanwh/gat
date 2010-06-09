@@ -1,3 +1,5 @@
+# ABSTRACT: A Glorious Asset Tracker
+
 package Gat;
 use Moose;
 use namespace::autoclean;
@@ -79,10 +81,3 @@ __PACKAGE__->meta->make_immutable;
 
 1;
 
-__DATA__
-
-=head1 NAME
-
-Gat - A Glorious Asset Tracker
-
-pants.

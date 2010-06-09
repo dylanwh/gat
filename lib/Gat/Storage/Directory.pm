@@ -1,4 +1,7 @@
 package Gat::Storage::Directory;
+
+# ABSTRACT: The (default) storage method (store files in $GAT_DIR/storage)
+
 use Moose;
 use namespace::autoclean;
 

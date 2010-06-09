@@ -1,7 +1,4 @@
-package Gat::Cmd::Command::add;
-
-# ABSTRACT: insert a file into the gat store.
-
+package Gat::Cmd::Command::restore;
 use feature 'say';
 use Moose;
 use namespace::autoclean;
@@ -12,18 +9,26 @@ use Path::Class;
 use MooseX::Types::Path::Class 'File';
 use Data::Stream::Bulk::Path::Class;
 
-=head1 SYNOPSIS
-
-    gat add file [file2 [dir...]]
-
-=cut
-
 sub invoke {
     my ($self, $gat, @args) = @_;
+
     my $file = file(shift @args);
-    say $gat->add($file) ? "added $file" : "failed to add $file";
+    $gat->restore($file);
+    say "Restored $file";
 }
 
 __PACKAGE__->meta->make_immutable;
 
 1;
+
+__END__
+
+=head1 NAME
+
+Gat::Cmd::Command::restore - restore a file from the gat store
+
+=head1 SYNOPSIS
+
+    gat restore file [file2 [dir...]]
+
+
