@@ -13,10 +13,15 @@ use Gat::Types ':all';
 
 has '+name' => ( default => 'Gat' );
 
+has 'base_dir' => (
+    is       => 'ro',
+    isa      => AbsoluteDir,
+    required => 1,
+);
+
 has 'work_dir' => (
     is       => 'ro',
     isa      => AbsoluteDir,
-    coerce   => 1,
     required => 1,
 );
 

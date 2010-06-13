@@ -6,7 +6,7 @@ use MooseX::Types::Moose ':all';
 use MooseX::Types::Structured 'Tuple';
 use MooseX::Types::Path::Class ':all';
 
-use Path::Class::File;
+use Path::Class;
 
 use List::MoreUtils 'first_value';
 use Gat::Types ':all';
@@ -28,33 +28,35 @@ has 'rule_default' => (
     default  => 1,
 );
 
-has 'work_dir' => (
+has 'base_dir' => (
     is      => 'ro',
     isa     => AbsoluteDir,
     coerce  => 1,
-    default => sub {
-        Path::Class::Dir->new('.')->resolve;
-    },
+    default => sub { Path::Class::Dir->new('.')->resolve  },
 );
 
 has 'gat_dir' => (
     is      => 'ro',
     isa     => AbsoluteDir,
     coerce  => 1,
-    default => sub { $_[0]->work_dir->subdir('.gat') },
+    lazy    => 1,
+    default => sub { $_[0]->base_dir->subdir('.gat') },
 );
 
 sub match {
     my ($self, $file) = @_;
-    $file = Path::Class::File->new($file)->absolute;
-
-    my $work_dir = $self->work_dir;
+    my $base_dir = $self->base_dir;
     my $gat_dir  = $self->gat_dir;
 
-    return 0 unless index($file, $work_dir) == 0;
+    $file = blessed $file ? $file : file($file);
+    if ($file->is_relative) {
+        $file = $file->absolute( $base_dir );
+    }
+
+    return 0 unless index($file, $base_dir) == 0;
     return 0 unless index($file, $gat_dir)  != 0;
 
-    my $rel_file = $file->relative( $work_dir );
+    my $rel_file = $file->relative( $base_dir );
     my $rule = first_value { $rel_file =~ $_->[0] } $self->all_rules;
     return $rule ? $rule->[1] : $self->rule_default;
 }
