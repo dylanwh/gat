@@ -7,10 +7,11 @@ use Test::Exception;
 
 use ok 'Gat::Repository::Local';
 
-my $root = temp_root();
+my $root = temp_root->absolute;
 
 my $repo = Gat::Repository::Local->new(
-    storage_dir => $root->subdir('.gat/store'),
+    asset_dir => $root->subdir('.gat/asset'),
+    use_symlinks => 1,
 );
 
 isa_ok($repo, 'Gat::Repository::Local');
