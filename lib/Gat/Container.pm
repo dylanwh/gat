@@ -2,39 +2,37 @@ package Gat::Container;
 use Moose;
 use namespace::autoclean;
 
-extends 'Bread::Board::Container';
+use Cwd;
 
 use Bread::Board;
 use MooseX::Types::Path::Class 'Dir';
 
-use Gat;
-use Gat::Storage::Directory;
-use Gat::Types ':all';
+use Gat::Path;
+use Gat::Repository::Local;
+use Gat::Model;
+
+extends 'Bread::Board::Container';
 
 has '+name' => ( default => 'Gat' );
 
-has 'base_dir' => (
-    is       => 'ro',
-    isa      => AbsoluteDir,
-    required => 1,
-);
-
-has 'work_dir' => (
-    is       => 'ro',
-    isa      => AbsoluteDir,
-    required => 1,
-);
-
 sub BUILD {
     my ($self)   = @_;
-    my $work_dir = $self->work_dir;
-    my $gat_dir  = $work_dir->subdir('.gat');
 
-    $gat_dir->mkpath;
-    
     container $self => as {
-        service dsn        => 'bdb:dir=' . $gat_dir->subdir('model');
+        service 'work_dir' => cwd;
+        service 'path'     => (
+            class        => 'Gat::Path',
+            lifecycle    => 'Singleton',
+            dependencies => wire_names(qw[ work_dir ]),
+        );
+
         service extra_args => { create => 1 };
+        service dsn        => (
+            block => sub {
+                return 'bdb:dir=' . $_[0]->param('path')->gat_subdir('model');
+            },
+            dependencies => wire_names(qw[ path ]),
+        );
         service model => (
             class        => 'Gat::Model',
             lifecycle    => 'Singleton',
@@ -42,34 +40,37 @@ sub BUILD {
         );
 
         service digest_type  => 'MD5';
-        service use_symlinks => 1;
-        service storage_dir  => $gat_dir->subdir('storage');
-        service storage => (
-            class        => 'Gat::Storage::Directory',
-            dependencies => wire_names(qw[ digest_type use_symlinks storage_dir ]),
+        service use_symlinks => $ENV{GAT_USE_SYMLINKS} || 0;
+        service asset_dir    => (
+            block => sub {
+                return $_[0]->param('path')->gat_subdir('asset');
+            },
+            dependencies => wire_names(qw[ path ]),
+        );
+        service repository => (
+            class        => 'Gat::Repository::Local',
+            dependencies => wire_names(qw[ digest_type use_symlinks asset_dir ]),
         );
 
-        service work_dir     => $work_dir;
-        service gat_dir      => $gat_dir;
-        service rules        => [];
-        service rule_default => 1;
-        service selector => (
-            class        => 'Gat::Selector',
-            dependencies => wire_names(qw[ work_dir gat_dir rules rule_default ]),
-        );
+        container 'command' => as {
+            service 'add_options' => (
+                block => sub { 
+                    require Gat::Command::Add::Options;
+                    Gat::Command::Add::Options->new_with_options },
+            );
 
-        service app => (
-            class        => 'Gat',
-            lifecycle    => 'Singleton',
-            dependencies => wire_names(qw[ storage selector model work_dir ]),
-        );
-
-        my $config_file = $gat_dir->file('config');
-        include $config_file if -f $config_file;
+            service 'add' => (
+                class => 'Gat::Command::Add',
+                dependencies => { 
+                    path       => depends_on('/path'),
+                    repository => depends_on('/repository'),
+                    model      => depends_on('/model'),
+                    options    => depends_on('add_options'),
+                },
+            );
+        };
     };
 }
-
-sub app { $_[0]->fetch('app')->get }
 
 __PACKAGE__->meta->make_immutable;
 

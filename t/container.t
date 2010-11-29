@@ -4,42 +4,36 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Test::TempDir;
+use Cwd;
 
 use ok 'Gat::Container';
 
-my $root = temp_root();
+my $root = temp_root->absolute;
+my $cwd = cwd;
 
-my $c = Gat::Container->new(
-    work_dir => $root,
-);
+chdir $root;
+mkdir ".gat";
 
-my $gat = $c->gat;
+my $c     = Gat::Container->new();
+my $repo  = $c->fetch('repository')->get;
+my $model = $c->fetch('model')->get;
+my $path  = $c->fetch('path')->get;
 
-my $pants_file = $root->file('pants.txt');
-$pants_file->openw->print("I like to wear pants!\n");
+my $file = "foo"; # gat add foo
+$root->file($file)->openw->print("Hello\n");
 
-lives_ok {
-    $gat->txn_do(
-        sub {
-            $gat->add([ $pants_file ]);
-            $gat->remove([ $pants_file ]);
-        }
-    );
-};
+if ($path->is_valid($file) and $path->is_allowed($file)) {
+    my $scope    = $model->new_scope;
+    my $cfile    = $path->canonical($file);
+    my $afile    = $path->absolute($file);
 
-my $pants2_file = $root->file("pants2.txt")->absolute;
-$pants2_file->openw->print("I like to wear pants!\n");
+    my $checksum = $repo->insert($afile);
+    $model->add_file($cfile, $checksum);
+    $repo->link($afile, $checksum);
+}
+is($root->file($file)->slurp, "Hello\n");
 
-lives_ok {
-    $gat->txn_do(
-        sub {
-            $gat->add(    [$pants2_file] );
-            #$gat->remove( [$pants2_file] );
-        }
-    );
-};
+chdir $cwd;
 
-$gat->save_config();
 
 done_testing;
-
