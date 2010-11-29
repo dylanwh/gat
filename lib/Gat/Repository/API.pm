@@ -20,8 +20,8 @@ has 'digest_type' => (
 requires 'insert', 'link', 'unlink', 'assets';
 
 sub compute_checksum {
-    my $self = shift;
-    my $file = pos_validated_list(\@_, { isa => File, coerce => 1 });
+    my $self   = shift;
+    my ($file) = pos_validated_list(\@_, { isa => File, coerce => 1 });
 
     my $digest = Digest->new($self->digest_type);
     my $fh     = $file->openr;
