@@ -1,26 +1,26 @@
-package Gat::Storage::Directory;
+package Gat::Repository::Local;
 
 # ABSTRACT: The (default) storage method (store files in $GAT_DIR/storage)
 
 use Moose;
 use namespace::autoclean;
 
-with 'Gat::Storage::API';
-
 use File::Copy::Reliable 'move_reliable';
-
-use MooseX::Types::Path::Class 'File';
-use MooseX::Types::Moose ':all';
-use Gat::Types ':all';
-use Gat::Error;
-use Digest;
 
 use Data::Stream::Bulk::Path::Class;
 use Data::Stream::Bulk::Filter;
 
+use MooseX::Types::Path::Class 'File', 'Dir';
+use MooseX::Types::Moose ':all';
+
+use Gat::Types ':all';
+use Gat::Error;
+
+with 'Gat::Repository::API';
+
 has 'storage_dir' => (
     is       => 'ro',
-    isa      => AbsoluteDir,
+    isa      => Dir,
     coerce   => 1,
     required => 1,
 );
@@ -31,8 +31,6 @@ has 'use_symlinks' => (
     default => 1,
 );
 
-sub BUILD { $_[0]->storage_dir->mkpath }
-
 sub _resolve_safe {
     my ($self, $checksum) = @_;
     my $prefix = substr($checksum, 0, 2);
@@ -42,7 +40,7 @@ sub _resolve_safe {
 sub _resolve {
     my ($self, $checksum) = @_;
     my $file = $self->_resolve_safe($checksum);
-    Gat::Error->throw( message => "invalid asset $file" )  unless -f $file;
+    Gat::Error->throw( message => "missing asset $file" )  unless -f $file;
     return $file;
 }
 
@@ -94,14 +92,13 @@ sub unlink {
     unlink( $file );
 }
 
-sub check {
+sub verify {
     my ($self, $file, $checksum) = @_;
 
-    my $asset_file = $self->_resolve_safe($checksum);
 
-    return undef unless -e $asset_file;
-    return 0     unless -e $file;
-    return 0     unless $self->_compute_checksum($file) eq $checksum;
+    return undef unless -f $file;
+    return undef unless -f $self->_resolve_safe($checksum);
+    return 0 if $self->_compute_checksum($file) ne $checksum;
     return 1;
 }
 
