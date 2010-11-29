@@ -1,13 +1,7 @@
 #!/usr/bin/env perl
+use strict;
+use warnings;
 use Gat::Cmd;
+
 Gat::Cmd->run;
-
-=head1 NAME
-
-gat
-
-=head1 SYNOPSIS
-
-    FIXME
-
 
