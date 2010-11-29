@@ -7,7 +7,7 @@ use Test::Exception;
 use ok 'Gat::Model';
 
 use Path::Class;
-my $model = Gat::Model->new(dsn => 'hash', work_dir => '.');
+my $model = Gat::Model->new(dsn => 'hash');
 
 isa_ok($model, 'Gat::Model');
 

@@ -5,16 +5,16 @@ package Gat::Model;
 use Moose;
 use namespace::autoclean;
 
-extends 'KiokuX::Model';
-use MooseX::Types::Path::Class 'File', 'Dir';
 use MooseX::Types::Moose ':all';
-use Digest;
-use Carp;
+use MooseX::Params::Validate;
 
 use Gat::Schema::Asset;
 use Gat::Schema::Label;
-use Gat::Types 'Checksum';
+
+use Gat::Types 'Checksum', 'RelativeFile';
 use Gat::Error;
+
+extends 'KiokuX::Model';
 
 sub lookup_label { 
     my ($self, $file) = @_;
@@ -27,7 +27,12 @@ sub lookup_asset {
 }
 
 sub add_file {
-    my ($self, $file, $checksum) = @_;
+    my $self = shift;
+    my ($file, $checksum) = pos_validated_list(
+        \@_, 
+        { isa => RelativeFile, coerce => 1 },
+        { isa => Checksum }
+    );
 
     my $asset = $self->lookup_asset($checksum);
     if (not $asset) {
@@ -53,7 +58,11 @@ sub add_file {
 }
 
 sub drop_file {
-    my ($self, $file) = @_;
+    my $self = shift;
+    my ($file) = pos_validated_list(
+        \@_,
+        { isa => RelativeFile, coerce => 1 }
+    );
 
     my $label = $self->lookup_label($file);
     Gat::Error->throw( message => "$file is unknown to gat" ) unless $label;
