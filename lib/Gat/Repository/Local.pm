@@ -49,7 +49,7 @@ sub insert {
     Gat::Error->throw(message => "$file does not exist")        unless -e $file;
     Gat::Error->throw(message => "$file is not a regular file") unless -f _;
 
-    my $checksum   = $self->_compute_checksum($file);
+    my $checksum   = $self->compute_checksum($file);
     my $asset_file = $self->_resolve_safe($checksum);
 
     if (-f $asset_file) { # already have that, so remove it.
@@ -86,7 +86,7 @@ sub unlink {
     Gat::Error->throw(message => "$file is not a regular file") unless -f _;
 
     my $asset_file = $self->_resolve($checksum);
-    if ($self->_compute_checksum($file) ne $checksum) {
+    if ($self->compute_checksum($file) ne $checksum) {
         Gat::Error->throw( message => "Cannot unlink unmanaged file: $file" );
     }
     unlink( $file );
@@ -98,7 +98,7 @@ sub verify {
 
     return undef unless -f $file;
     return undef unless -f $self->_resolve_safe($checksum);
-    return 0 if $self->_compute_checksum($file) ne $checksum;
+    return 0 if $self->compute_checksum($file) ne $checksum;
     return 1;
 }
 

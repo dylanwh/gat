@@ -19,7 +19,7 @@ has 'digest_type' => (
 
 requires 'insert', 'link', 'unlink', 'assets';
 
-sub _compute_checksum {
+sub compute_checksum {
     my $self = shift;
     my $file = pos_validated_list(\@_, { isa => File, coerce => 1 });
 
