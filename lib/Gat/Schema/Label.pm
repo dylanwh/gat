@@ -6,11 +6,11 @@ with 'KiokuDB::Role::ID';
 
 use MooseX::Types::Path::Class 'File';
 use MooseX::Types::Moose ':all';
-use Gat::Types 'Asset';
+use Gat::Types 'Asset', 'RelativeFile';
 
 has 'filename' => (
     is       => 'ro',
-    isa      => File,
+    isa      => RelativeFile,
     coerce   => 1,
     required => 1,
 );
