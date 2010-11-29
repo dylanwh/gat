@@ -1,24 +1,26 @@
 package Gat::Repository::Local;
 
-# ABSTRACT: The (default) storage method (store files in $GAT_DIR/storage)
+# ABSTRACT: The (default) asset method (store files in $GAT_DIR/asset)
 
 use Moose;
 use namespace::autoclean;
 
 use File::Copy::Reliable 'move_reliable';
+use File::Basename;
 
 use Data::Stream::Bulk::Path::Class;
 use Data::Stream::Bulk::Filter;
 
 use MooseX::Types::Path::Class 'File', 'Dir';
 use MooseX::Types::Moose ':all';
+use MooseX::Params::Validate;
 
 use Gat::Types ':all';
 use Gat::Error;
 
 with 'Gat::Repository::API';
 
-has 'storage_dir' => (
+has 'asset_dir' => (
     is       => 'ro',
     isa      => Dir,
     coerce   => 1,
@@ -26,15 +28,15 @@ has 'storage_dir' => (
 );
 
 has 'use_symlinks' => (
-    is      => 'ro',
-    isa     => Bool,
-    default => 1,
+    is       => 'ro',
+    isa      => Bool,
+    required => 1,
 );
 
 sub _resolve_safe {
     my ($self, $checksum) = @_;
     my $prefix = substr($checksum, 0, 2);
-    return $self->storage_dir->subdir($prefix)->subdir($checksum);
+    return $self->asset_dir->subdir($prefix)->file(substr($checksum, 2));
 }
 
 sub _resolve {
@@ -45,7 +47,12 @@ sub _resolve {
 }
 
 sub insert {
-    my ($self, $file) = @_;
+    my $self = shift;
+    my ($file) = pos_validated_list(
+        \@_,
+        { isa => AbsoluteFile, coerce => 1 },
+    );
+
     Gat::Error->throw(message => "$file does not exist")        unless -e $file;
     Gat::Error->throw(message => "$file is not a regular file") unless -f _;
 
@@ -64,7 +71,12 @@ sub insert {
 }
 
 sub link {
-    my ($self, $file, $checksum) = @_;
+    my $self = shift;
+    my ($file, $checksum) = pos_validated_list(
+        \@_,
+        { isa => AbsoluteFile, coerce => 1 },
+        { isa => Checksum },
+    );
 
     Gat::Error->throw( message => "Can't overwrite $file" ) if -e $file;
 
@@ -80,7 +92,12 @@ sub link {
 }
 
 sub unlink {
-    my ($self, $file, $checksum) = @_;
+    my $self = shift;
+    my ($file, $checksum) = pos_validated_list(
+        \@_,
+        { isa => AbsoluteFile, coerce => 1 },
+        { isa => Checksum },
+    );
 
     Gat::Error->throw(message => "$file does not exist")        unless -e $file;
     Gat::Error->throw(message => "$file is not a regular file") unless -f _;
@@ -93,8 +110,12 @@ sub unlink {
 }
 
 sub verify {
-    my ($self, $file, $checksum) = @_;
-
+    my $self = shift;
+    my ($file, $checksum) = pos_validated_list(
+        \@_,
+        { isa => AbsoluteFile, coerce => 1 },
+        { isa => Checksum },
+    );
 
     return undef unless -f $file;
     return undef unless -f $self->_resolve_safe($checksum);
@@ -106,9 +127,9 @@ sub assets {
     my ($self) = @_;
 
     return Data::Stream::Bulk::Filter->new(
-        filter => sub { [ map { $_->basename } @$_ ] },
+        filter => sub { [ map { basename(dirname("$_")) . basename("$_") } @$_ ] },
         stream => Data::Stream::Bulk::Path::Class->new(
-            dir        => $self->storage_dir,
+            dir        => $self->asset_dir,
             only_files => 1,
         ),
     );
