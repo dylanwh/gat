@@ -26,13 +26,22 @@ sub lookup_asset {
     return $self->lookup("asset:$checksum");
 }
 
-sub add_file {
+sub add_label {
     my $self = shift;
     my ($file, $checksum) = pos_validated_list(
         \@_, 
         { isa => RelativeFile, coerce => 1 },
         { isa => Checksum }
     );
+
+    my $label = $self->lookup_label($file);
+    if ( $label ) {
+        my $label_asset = $label->asset;
+        $label_asset->remove_label( $label );
+        $self->deep_update($label_asset);
+    } else {
+        $label = Gat::Schema::Label->new( filename => $file, asset => undef );
+    }
 
     my $asset = $self->lookup_asset($checksum);
     if (not $asset) {
@@ -41,23 +50,12 @@ sub add_file {
         );
     }
 
-    my $label = $self->lookup_label($file);
-    if (not $label) {
-        $asset->add_label(
-            Gat::Schema::Label->new(
-                filename => $file,
-                asset => $asset,
-            )
-        );
-    }
-    else {
-        $asset->add_label($label);
-        $label->asset($asset);
-    }
+    $asset->add_label($label);
     $self->store($asset);
+    $self->store_nonroot($label);
 }
 
-sub drop_file {
+sub remove_label {
     my $self = shift;
     my ($file) = pos_validated_list(
         \@_,
