@@ -6,6 +6,8 @@ with 'KiokuDB::Role::ID';
 
 use MooseX::Types::Path::Class 'File';
 use MooseX::Types::Moose ':all';
+use MooseX::Params::Validate;
+
 use KiokuDB::Util qw( weak_set set );
 
 use Gat::Types 'Label', 'Checksum';
@@ -15,8 +17,6 @@ has '_labels' => (
     init_arg => undef,
     default  => sub { set() },
     handles  => {
-        add_label    => 'insert',
-        remove_label => 'remove',
         has_label    => 'contains',
     },
 );
@@ -37,6 +37,24 @@ sub kiokudb_object_id {
     my ($self) = @_;
     return 'asset:' . $self->checksum;
 }
+
+sub add_label {
+    my $self = shift;
+    my ($label) = pos_validated_list(\@_, { isa => Label });
+
+    $label->asset( $self );
+    $self->_labels->insert($label);
+}
+
+sub remove_label {
+    my $self = shift;
+    my ($label) = pos_validated_list(\@_, { isa => Label });
+
+    $label->asset(undef);
+    $self->_labels->remove($label);
+}
+
+
 
 __PACKAGE__->meta->make_immutable;
 
