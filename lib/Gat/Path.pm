@@ -4,19 +4,11 @@ use namespace::autoclean;
 
 use Carp;
 use Path::Class 'dir';
-use List::MoreUtils 'first_value';
 
 use MooseX::Params::Validate;
 use MooseX::Types::Path::Class ':all';
 
-use Gat::Path::Rules;
 use Gat::Types ':all';
-
-has 'rules' => (
-    is         => 'ro',
-    isa        => 'Gat::Path::Rules',
-    lazy_build => 1,
-);
 
 has 'work_dir' => (
     is      => 'ro',
@@ -76,25 +68,6 @@ sub _build_gat_dir {
 
 }
 
-sub _build_rules {
-    my ($self) = @_;
-    my $file = $self->gat_file('rules.yml');
-
-    if (-f $file) {
-        return Gat::Path::Rules->load($file);
-    }
-    else {
-        return Gat::Path::Rules->new;
-    }
-}
-
-sub save_rules {
-    my ($self) = @_;
-    my $file = $self->gat_file('rules.yml');
-
-    $self->rules->store( $file );
-}
-
 sub cleanup {
     my $self = shift;
     my ($file) = pos_validated_list( \@_, { isa => File, coerce => 1 } );
@@ -140,15 +113,6 @@ sub is_valid {
     my $abs_file = $self->absolute($file);
 
     return $self->base_dir->subsumes($abs_file) && !$self->gat_dir->subsumes($abs_file);
-}
-
-sub is_allowed {
-    my $self   = shift;
-    my ($file) = pos_validated_list(\@_, { isa => File, coerce => 1 });
-    my $cfile  = $self->canonical( $file );
-
-    my $pred   = first_value { $cfile =~ $_->[0] } $self->rules->predicates;
-    return $pred ? $pred->[1] : $self->rules->default;
 }
 
 __PACKAGE__->meta->make_immutable;
