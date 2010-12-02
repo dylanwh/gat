@@ -31,7 +31,7 @@ sub execute {
         my $afile    = $rules->absolute($file);
 
         my ($checksum, $stat) = $repo->insert($afile);
-        $model->add_label($cfile, $checksum, $size);
+        $model->add_label($cfile, $checksum, $stat->size);
     }
 }
 
