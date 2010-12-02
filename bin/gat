@@ -5,3 +5,8 @@ use Gat::Cmd;
 
 Gat::Cmd->run;
 
+=head1 NAME
+
+gat
+
+=cut

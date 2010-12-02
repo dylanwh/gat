@@ -6,7 +6,13 @@ extends 'Gat::Cmd::Command';
 
 sub execute {
     my ($self) = @_;
-    my $model = $self->fetch('model')->get;
+    my $c = Gat::Container->new(
+        work_dir => $self->work_dir->absolute,
+    );
+
+    $c->check_workspace;
+
+    my $model = $c->fetch('model')->get;
     my $scope = $model->new_scope;
     my $s     = $model->manifest;
 

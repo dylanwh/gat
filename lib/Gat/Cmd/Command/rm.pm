@@ -10,26 +10,23 @@ has 'force' => (
     default => 0,
 );
 
-has 'verbose' => (
-    is      => 'ro',
-    isa     => 'Bool',
-    default => 0,
-);
-
 sub execute {
     my ( $self, $opt, $files ) = @_;
-    my $model  = $self->fetch('model')->get;
-    my $repo   = $self->fetch('repository')->get;
-    my $path   = $self->fetch('path')->get;
-    my $scope  = $model->new_scope;
+    my $c = Gat::Container->new(
+        work_dir => $self->work_dir->absolute,
+    );
+
+    $c->check_workspace;
+
+    my $model = $c->fetch('model')->get;
+    my $scope = $model->new_scope;
 
     for my $file (@$files) {
-        next if not -f $file;
-        die "invalid path: $file"    unless $path->is_valid($file);
-        die "disallowed path: $file" unless $path->is_allowed($file) or $self->force;
+        die "invalid path: $file\n"    unless $rules->is_valid($file);
+        die "disallowed path: $file\n" unless $rules->is_allowed($file) or $self->force;
+        die "still exists: $file\n"    if -f $file;
 
-        my $cfile    = $path->canonical($file);
-        my $afile    = $path->absolute($file);
+        my $cfile = $rules->canonical($file);
 
         $model->remove_label($cfile);
     }

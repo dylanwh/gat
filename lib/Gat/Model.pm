@@ -28,10 +28,11 @@ sub lookup_asset {
 
 sub add_label {
     my $self = shift;
-    my ($file, $checksum) = pos_validated_list(
+    my ($file, $checksum, $size) = pos_validated_list(
         \@_, 
-        { isa => RelativeFile, coerce => 1 },
-        { isa => Checksum }
+        { isa => RelativeFile, coerce => 1  },
+        { isa => Checksum                   },
+        { isa => Int,          default => 0 },
     );
 
     my $label = $self->lookup_label($file);
@@ -47,6 +48,7 @@ sub add_label {
     if (not $asset) {
         $asset = Gat::Schema::Asset->new(
             checksum => $checksum,
+            size     => $size,
         );
     }
 

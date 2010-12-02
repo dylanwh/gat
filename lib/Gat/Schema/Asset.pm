@@ -21,6 +21,12 @@ has '_labels' => (
     },
 );
 
+has 'size' => (
+    is       => 'rw',
+    isa      => Int,
+    required => 1,
+);
+
 has 'checksum' => (
     is       => 'rw',
     isa      => Checksum,

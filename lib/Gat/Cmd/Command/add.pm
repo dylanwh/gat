@@ -30,8 +30,8 @@ sub execute {
         my $cfile    = $rules->canonical($file);
         my $afile    = $rules->absolute($file);
 
-        my $checksum = $repo->insert($afile);
-        $model->add_label($cfile, $checksum);
+        my ($checksum, $stat) = $repo->insert($afile);
+        $model->add_label($cfile, $checksum, $size);
     }
 }
 
