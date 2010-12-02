@@ -19,6 +19,7 @@ sub execute {
     $c->check_workspace;
 
     my $model = $c->fetch('model')->get;
+    my $rules = $c->fetch('path_rules')->get;
     my $scope = $model->new_scope;
 
     for my $file (@$files) {
