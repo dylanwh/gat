@@ -1,16 +1,21 @@
 package Gat::Repository;
 
 # ABSTRACT: The (default) asset method (store files in $GAT_DIR/asset)
-
 use Moose;
 use namespace::autoclean;
+use strictures 1;
+use autodie;
 
 use File::Copy::Reliable 'move_reliable';
 use File::Basename;
+use File::stat;
+use File::chmod;
 use Digest;
+use Carp;
 
 use Data::Stream::Bulk::Path::Class;
 use Data::Stream::Bulk::Filter;
+use Try::Tiny;
 
 use MooseX::Types::Path::Class 'File', 'Dir';
 use MooseX::Types::Moose ':all';
@@ -18,12 +23,6 @@ use MooseX::Params::Validate;
 
 use Gat::Types ':all';
 use Gat::Error;
-
-has 'digest_type' => (
-    is      => 'ro',
-    isa     => Str,
-    default => 'MD5',
-);
 
 has 'asset_dir' => (
     is       => 'ro',
@@ -33,34 +32,49 @@ has 'asset_dir' => (
 );
 
 has 'use_symlinks' => (
-    is       => 'ro',
-    isa      => Bool,
-    required => 1,
+    is      => 'ro',
+    isa     => Bool,
+    default => 1,
 );
 
-requires 'insert', 'link', 'remove', 'verify', 'assets';
+has 'digest_type' => (
+    is      => 'ro',
+    isa     => Str,
+    default => 'MD5',
+);
+
+sub BUILD {
+    my ($self) = @_;
+    croak "Repository->asset_dir does not exist!" unless -d $self->asset_dir;
+}
 
 sub compute_checksum {
     my $self   = shift;
     my ($file) = pos_validated_list(\@_, { isa => File, coerce => 1 });
 
     my $digest = Digest->new($self->digest_type);
-    my $fh     = $file->openr;
-    $digest->addfile($fh);
+
+    try {
+        my $fh     = $file->openr;
+        $digest->addfile($fh);
+    }
+    catch {
+        Gat::Error->throw(message => "unable to compute checksum of $file");
+    };
+
     return $digest->hexdigest;
 }
 
-sub _resolve {
+sub resolve {
     my ($self, $checksum) = @_;
     my $prefix = substr($checksum, 0, 2);
 
     return $self->asset_dir->subdir($prefix)->file(substr($checksum, 2));
 }
 
-
 sub fetch {
     my ($self, $checksum) = @_;
-    my $file = $self->_resolve($checksum);
+    my $file = $self->resolve($checksum);
     
     if (-f $file) {
         return $file;
@@ -70,7 +84,6 @@ sub fetch {
     }
 }
 
-
 sub insert {
     my $self = shift;
     my ($file) = pos_validated_list(
@@ -78,25 +91,23 @@ sub insert {
         { isa => AbsoluteFile, coerce => 1 },
     );
 
-    Gat::Error->throw(message => "$file does not exist")        unless -e $file;
+    my $info = lstat($file);
+    Gat::Error->throw(message => "$file does not exist")        unless -e _;
     Gat::Error->throw(message => "$file is not a regular file") unless -f _;
+    Gat::Error->throw(message => "$file is a symlink")          if     -l _;
 
     my $checksum   = $self->compute_checksum($file);
-    my $asset_file = $self->_resolve($checksum);
+    my $asset_file = $self->resolve($checksum);
 
-    if (-f $asset_file) { # already have that, so remove it.
-        unlink($file);
-    }
-    else {                                   # don't have it
-        $asset_file->parent->mkpath;         # ensure path exists
-        move_reliable($file, $asset_file);   # move the file over.
-    }
+    $asset_file->parent->mkpath;       # ensure path exists
+    move_reliable($file, $asset_file); # move the file over.
+    chmod('a-w', $asset_file);         # remove write perms.
 
-    $self->link($file, $checksum);
-    return $checksum;
+    $self->assign($file, $checksum);
+    return wantarray ? ($checksum, $info) : $checksum;
 }
 
-sub link {
+sub assign {
     my $self = shift;
     my ($file, $checksum) = pos_validated_list(
         \@_,
@@ -124,7 +135,7 @@ sub remove {
         { isa => Checksum },
     );
 
-    my $asset_file = $self->_resolve($checksum);
+    my $asset_file = $self->resolve($checksum);
 
     unlink($asset_file) if -f $asset_file;
 }
@@ -138,7 +149,7 @@ sub verify {
     );
 
     return undef unless -f $file;
-    return undef unless -f $self->_resolve_safe($checksum);
+    return undef unless -f $self->resolve($checksum);
     return 0 if $self->compute_checksum($file) ne $checksum;
     return 1;
 }

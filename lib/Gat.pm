@@ -1,83 +1,61 @@
 # ABSTRACT: A Glorious Asset Tracker
 
 package Gat;
-use Moose;
-use namespace::autoclean;
+use strictures;
 
-use MooseX::Types::Path::Class 'File';
-use Guard;
-use Cwd;
+use Gat::Container;
+use MooseX::Types::Moose ':all';
+use MooseX::Types::Path::Class ':all';
+use MooseX::Params::Validate;
 
-use Gat::Storage::API;
-use Gat::Model;
-use Gat::Selector;
-use Gat::Types ':all';
+# Gat::init( { work_dir => Dir } )
+# Gat::add({ work_dir => Dir, files => ArrayRef[File], force => Bool })
+# Gat::rm({ work_dir => Dir, files => ArrayRef[File] });
+# Gat::manifest 
 
-has 'model' => (
-    is       => 'ro',
-    isa      => 'Gat::Model',
-    required => 1,
-);
+sub init {
+    my ($work_dir, $verbose) = validated_list(\@_, 
+        work_dir => { isa => Dir, coerce => 1 },
+        verbose  => { isa => Bool, default => 0 },
+    );
 
-has 'storage' => (
-    is       => 'ro',
-    does     => 'Gat::Storage::API',
-    required => 1,
-);
-
-has 'selector' => (
-    is       => 'ro',
-    isa      => 'Gat::Selector',
-    required => 1,
-);
-
-has 'work_dir' => (
-    is       => 'ro',
-    isa      => AbsoluteDir,
-    required => 1,
-);
-
-sub txn_do {
-    my ($self, $code) = @_;
-    my $dir = cwd;
-    scope_guard { chdir $dir };
-    chdir $self->work_dir;
-    $self->model->txn_do($code, scope => 1);
 }
 
 sub add {
-    my ($self, $file) = @_;
-    $self->selector->assert($file);
+    my ($work_dir, $verbose) = validated_list(\@_, 
+        work_dir => { isa => Dir, coerce => 1 },
+        verbose  => { isa => Bool, default => 0 },
+        files    => { isa => ArrayRef[File|Str] },
+    );
 
-    unless (-f $file) {
-        Gat::Error->throw(message => "$file is not a regular file!");
-    }
+    my $c = Gat::Container->new(
+        work_dir => $work_dir->absolute,
+        base_dir => $work_dir->absolute,
+    );
 
-    my $checksum = $self->storage->insert($file);
-    $self->model->add_file($file, $checksum);
-    $self->storage->link($file, $checksum);
+    my $gat_dir = $c->fetch('gat_dir')->get;
+
+    $gat_dir->mkpath($verbose);
+    $gat_dir->subdir('asset')->mkpath($verbose);
+
+    my $config_file = $gat_dir->file('config');
+    my $config = $c->fetch('config')->get;
+
+    $config->set(
+        key      => 'repository.use_symlinks',
+        value    => 0,
+        as       => 'bool',
+        filename => $config_file,
+    );
+
+    $config->set(
+        key      => 'repository.digest_type',
+        value    => 'MD5',
+        filename => $config_file,
+    );
+
+
 }
 
-sub drop {
-    my ($self, $file) = @_;
-    $self->selector->assert($file);
-
-    my $checksum = $self->model->drop_file($file);
-    $self->storage->unlink($file, $checksum);
-}
-
-sub restore {
-    my ($self, $file) = @_;
-    $self->selector->assert($file);
-    my $label = $self->model->lookup_label($file);
-    Gat::Error->throw(message => "$file is unkown to gat") unless $label;
-    Gat::Error->throw(message => "$file exists") if -e $file;
-    $self->storage->link($file, $label->checksum);
-}
-
-sub gc { }
-
-__PACKAGE__->meta->make_immutable;
 
 1;
-

@@ -2,69 +2,30 @@
 use strict;
 use warnings;
 use Test::More;
-use Test::TempDir;
 use Test::Exception;
-
-use ok 'Gat::Repository::Local';
+use Test::TempDir;
 
 my $root = temp_root->absolute;
+my $asset_dir = $root->subdir('asset');
+$asset_dir->mkpath;
 
-my $repo = Gat::Repository::Local->new(
-    asset_dir => $root->subdir('.gat/asset'),
-    use_symlinks => 1,
-);
+use Gat::Repository;
 
-isa_ok($repo, 'Gat::Repository::Local');
+my $repo = Gat::Repository->new( asset_dir => $asset_dir );
 
-my $foo_file = $root->file('foo.txt');
-$foo_file->openw->print("foo\n");
+$root->file('pants.txt')->openw->print('hello, world');
 
-my $checksum = $repo->insert($foo_file);
+my $checksum = $repo->insert( $root->file('pants.txt') );
+ok(-f $root->file('pants.txt') );
+unlink $root->file('pants.txt');
+ok(!-f $root->file('pants.txt') );
+$repo->assign( $root->file('pants.txt'), $checksum );
+ok(-f $root->file('pants.txt') );
 
-$repo->link($foo_file, $checksum);
-ok(-l $foo_file, "symlink okay");
-lives_and {
-    my $line = $foo_file->slurp;
+is($checksum, 'e4d7f1b4ed2e42d15898f4b27b019da4');
+is($root->file(readlink($root->file('pants.txt'))), $repo->fetch($checksum));
 
-    is("foo\n", $line, 'symlink works');
-};
-
-lives_and {
-    $repo->unlink($foo_file, $checksum);
-    ok(!-e $foo_file);
-};
-
-dies_ok {
-    $repo->unlink($foo_file, $checksum);
-};
-
-$foo_file->openw->print("I like cheese");
-dies_ok {
-    $repo->unlink($foo_file, $checksum);
-};
-
-dies_ok {
-    $repo->unlink($foo_file, '77c1d35c535e03d77dcc9ed4060db4e3');
-};
-ok(-e $foo_file, 'still there');
-
-my $bar_file = $root->subdir('dir')->file('bar.txt');
-$bar_file->parent->mkpath;
-$bar_file->openw->print("bar\n");
-
-my $barsum = $repo->insert($bar_file);
-$repo->link($bar_file, $barsum);
-ok(-l $bar_file, "symlink (bar) ok");
-
-lives_and {
-    $repo->unlink($bar_file, $barsum);
-    ok(!-e $bar_file, "bar unlinked");
-};
-
-is_deeply(
-    [ sort qw( c157a79031e1c40f85931829bc5fc552 d3b07384d113edec49eaa6238ad5ff00 ) ],
-    [ sort $repo->assets->all ],
-);
+$repo->remove($checksum);
+ok(!-f $repo->resolve($checksum));
 
 done_testing;
-

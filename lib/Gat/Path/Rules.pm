@@ -1,14 +1,21 @@
-package Gat::Path;
+package Gat::Path::Rules;
 use Moose;
 use namespace::autoclean;
 
-use Carp;
-use Path::Class 'dir';
-
+use MooseX::Types::Moose ':all';
+use MooseX::Types::Path::Class 'File';
+use MooseX::Types::Structured 'Tuple';
 use MooseX::Params::Validate;
-use MooseX::Types::Path::Class ':all';
-
+use List::MoreUtils 'first_value';
 use Gat::Types ':all';
+
+has 'predicates' => (
+    traits  => ['Array'],
+    isa     => ArrayRef [ Tuple [ RegexpRef, Bool ] ],
+    reader  => '_reader',
+    handles => { 'predicates' => 'elements', 'add_predicate' => 'push' },
+    default => sub { [] },
+);
 
 has 'work_dir' => (
     is       => 'ro',
@@ -80,14 +87,17 @@ sub is_valid {
 sub is_allowed {
     my $self = shift;
     my ($file)   = pos_validated_list( \@_, { isa => File, coerce => 1 } );
-    if ($self->has_rules) {
-        return $self->rules->is_allowed( $self->canonical( $file ) );
-    }
-    else {
-        return 1;
-    }
+
+    return $self->_is_allowed( $self->canonical( $file ) );
+}
+
+sub _is_allowed {
+    my $self   = shift;
+    my ($file) = pos_validated_list(\@_, { isa => RelativeFile, coerce => 1 });
+
+    my $pred   = first_value { $file =~ $_->[0] } $self->predicates;
+    return $pred ? $pred->[1] : 1;
 }
 
 __PACKAGE__->meta->make_immutable;
-
 1;

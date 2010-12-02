@@ -6,25 +6,24 @@ use Test::Exception;
 use Gat::Path;
 use Path::Class;
 
-use ok 'Gat::Rules';
+use ok 'Gat::Path::Rules';
 
 my $cwd = dir('.')->absolute;
 
-my $path = Gat::Path->new(
+my $rules = Gat::Path::Rules->new(
     work_dir => $cwd->subdir('src'),
     base_dir => $cwd,
-);
-
-my $rules = Gat::Rules->new(
-    path       => $path,
+    gat_dir  => $cwd->subdir('.gat'),
     predicates => [ [ qr/\.bak$/ => 0 ], [ qr/~$/ => 0 ] ],
 );
 
 ok(!$rules->is_allowed('foo.bak'), "foo.bak is not allowed");
 
 # this one only allows jpg
-my $rules2 = Gat::Rules->new(
-    path       => $path,
+my $rules2 = Gat::Path::Rules->new(
+    work_dir => $cwd->subdir('src'),
+    base_dir => $cwd,
+    gat_dir  => $cwd->subdir('.gat'),
     predicates => [ [ qr/\.jpg$/i => 1],  [qr/./ => 0 ] ],
 );
 

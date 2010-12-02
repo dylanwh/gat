@@ -14,7 +14,7 @@ isa_ok($model, 'Gat::Model');
 foo: {
     {
         my $scope = $model->new_scope;
-        $model->add_file(file('foo'), 'd3b07384d113edec49eaa6238ad5ff00');
+        $model->add_label(file('foo'), 'd3b07384d113edec49eaa6238ad5ff00');
 
         my $label = $model->lookup_label(file('foo'));
         ok($label, "got foo");
@@ -23,7 +23,7 @@ foo: {
             is($label->filename . "", 'foo');
         }
 
-        $model->add_file(file('bar'), 'd3b07384d113edec49eaa6238ad5ff00');
+        $model->add_label(file('bar'), 'd3b07384d113edec49eaa6238ad5ff00');
 
         my $label2 = $model->lookup_label(file('bar'));
         ok($label2, "got bar");
@@ -41,7 +41,7 @@ foo: {
 
     {
         my $scope = $model->new_scope;
-        $model->add_file(file('foo'), '9ca5b5da2a7cb73eb04afc7ecfbd1912');
+        $model->add_label(file('foo'), '9ca5b5da2a7cb73eb04afc7ecfbd1912');
 
         my $label = $model->lookup_label(file('foo'));
         ok($label, "got foo again");
@@ -56,9 +56,18 @@ foo: {
 
     {
         my $scope = $model->new_scope;
-        is($model->drop_file( file('foo') ), '9ca5b5da2a7cb73eb04afc7ecfbd1912');
+        is($model->remove_label( file('foo') ), '9ca5b5da2a7cb73eb04afc7ecfbd1912');
         ok(!$model->lookup_label(file('foo')), 'gone');
     }
+
+    {
+        my $scope = $model->new_scope;
+        $model->add_label('foo', '9ca5b5da2a7cb73eb04afc7ecfbd1913');
+        $model->remove_label('foo');
+        $model->add_label('foo', '9ca5b5da2a7cb73eb04afc7ecfbd1913');
+        use YAML;
+        diag Dump([ $model->manifest->all ]);
+    };
 }
 
 

@@ -6,21 +6,24 @@ extends 'Gat::Cmd::Command';
 
 sub execute {
     my ( $self, $opt, $files ) = @_;
-    my $model = $self->fetch('model')->get;
-    my $repo  = $self->fetch('repository')->get;
-    my $path  = $self->fetch('path')->get;
+    my $c = Gat::Container->new(work_dir => $self->work_dir->absolute);
+
+    $c->check_workspace;
+    my $model = $c->fetch('model')->get;
+    my $repo  = $c->fetch('repository')->get;
+    my $rules = $c->fetch('path_rules')->get;
 
     for my $file (@$files) {
-        die "invalid path: $file"    unless $path->is_valid($file);
-        die "disallowed path: $file" unless $path->is_allowed($file) or $self->force;
+        die "invalid path: $file"    unless $rules->is_valid($file);
+        die "disallowed path: $file" unless $rules->is_allowed($file) or $self->force;
 
         my $scope    = $model->new_scope;
-        my $cfile    = $path->canonical($file);
-        my $afile    = $path->absolute($file);
+        my $cfile    = $rules->canonical($file);
+        my $afile    = $rules->absolute($file);
 
         my $label = $model->lookup_label($cfile);
         if ($label) {
-            $repo->link($afile, $label->checksum);
+            $repo->assign($afile, $label->checksum);
         }
     }
 }
