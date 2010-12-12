@@ -4,23 +4,23 @@ use warnings;
 use Test::More;
 use Test::Exception;
 use Path::Class;
+use Test::TempDir;
 
-use Gat::Container;
+use ok 'Gat::Rules';
 
-my $cwd = dir('.')->absolute;
-my $c   = Gat::Container->new( work_dir => $cwd );
+my $cwd = temp_root->absolute;
 
-$cwd->subdir('.gat')->mkpath;
-$cwd->subdir('.gat')->file('rules')->openw->print(
+$cwd->file('rules')->openw->print(
     '^important' . "\n",
     '!\\.bak$' . "\n",
 );
 
-my $rules = $c->fetch('path_rules')->get;
+my $rules = Gat::Rules->new;
+
+$rules->load_file($cwd->file('rules'));
 
 ok($rules->is_allowed('pants'), "pants are allowed");
 ok(!$rules->is_allowed('pants.bak'), "emergency pants are not allowed");
 ok($rules->is_allowed('important-pants.bak'), "important emergency pants are allowed");
 
 done_testing;
-

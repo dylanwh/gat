@@ -2,29 +2,26 @@ package Gat::Config;
 use Moose;
 use namespace::autoclean;
 
-use Gat::Types 'AbsoluteDir';
-use Path::Class;
+use Carp;
 use File::Basename;
+
+use Path::Class;
+use Gat::Types 'AbsoluteFile';
 
 extends 'Config::GitLike';
 
 has '+confname' => ( default => 'config' );
 
-has 'gat_dir' => (
-    is       => 'ro',
-    isa      => AbsoluteDir,
-    required => 1,
-);
-
 sub dir_file {
     my ($self) = @_;
-    
-    return file(basename($self->gat_dir), $self->confname);
+
+    return '.gat/config';
 }
 
 sub load_dirs {
     my ($self, $path) = @_;
-    $path ||= $self->base_dir;
+    croak "$path required!\n" unless $path;
+
     my $file = dir($path)->file( $self->dir_file );
     $self->load_file( $file );
 }

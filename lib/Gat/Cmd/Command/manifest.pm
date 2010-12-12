@@ -12,7 +12,7 @@ sub execute {
 
     $c->check_workspace;
 
-    my $model = $c->fetch('model')->get;
+    my $model = $c->fetch('Model/instance')->get;
     my $scope = $model->new_scope;
     my $s     = $model->manifest;
 

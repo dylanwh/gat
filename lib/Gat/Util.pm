@@ -1,49 +1,36 @@
 package Gat::Util;
 use strictures 1;
 use Path::Class;
+use Data::Stream::Bulk::Path::Class;
+use Data::Stream::Bulk::Cat;
+use Data::Stream::Bulk::Array;
 
 use Sub::Exporter -setup => {
-    exports => [qw[ file_stream find_base_dir parse_rules ]],
+    exports => [qw[ file_stream ]],
 };
 
 sub file_stream {
-    my @files = @_;
-    
-}
+    my @paths = @_;
+    my (@streams, @files);
 
-sub find_base_dir {
-    my ($work) = @_;
-    my $root = dir('');
-    my $base = $work;
-
-    until (-d $base->subdir('.gat')) {
-        $base = $base->parent;
-        return $work if $base eq $root;
-    }
-    
-    return $base;
-}
-
-sub parse_rules {
-    my ($file) = @_;
-
-    my @predicates;
-    my $fh = $file->openr;
-    local $_;
-
-    while ($_ = $fh->getline) {
-        chomp;
-        if (/^!(.+)$/) {
-            push @predicates, [qr/$1/ => 0 ];
-        }
-        elsif (/^\s*#/) {
-            next;
+    foreach my $path (@paths) {
+        if (-d $path) {
+            push @streams, Data::Stream::Bulk::Path::Class->new(
+                dir => dir($path),
+                only_files => 1,
+            );
         }
         else {
-            push @predicates, [qr/$_/ => 1 ];
+            push @files, file($path);
         }
     }
-    return \@predicates;
+
+    return Data::Stream::Bulk::Cat->new(
+        streams => [ 
+            Data::Stream::Bulk::Array->new( array => \@files ),
+            @streams,
+        ],
+    );
 }
 
 

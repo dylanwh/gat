@@ -6,11 +6,11 @@ use Test::Exception;
 use Cwd;
 use Path::Class;
 
-use Gat::Path::Rules;
+use Gat::Path;
 
 my $cwd = dir(cwd);
 
-my $path = Gat::Path::Rules->new(
+my $path = Gat::Path->new(
     work_dir => $cwd->subdir('src'),
     base_dir => $cwd,
     gat_dir  => $cwd->subdir('.gat'),
@@ -18,6 +18,9 @@ my $path = Gat::Path::Rules->new(
 
 is($path->cleanup('/foo'), '/foo');
 is($path->cleanup('/foo/../bar/baz/..'), '/bar');
+is($path->cleanup('/foo/..'), '/');
+is($path->cleanup('/..'), '/');
+is($path->cleanup('/./..'), '/');
 
 done_testing;
 

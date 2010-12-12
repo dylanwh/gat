@@ -1,6 +1,7 @@
 package Gat::Cmd::Command::add;
 use Moose;
 use namespace::autoclean;
+use Gat::FileStream;
 
 extends 'Gat::Cmd::Command';
 
@@ -18,20 +19,24 @@ sub execute {
 
     $c->check_workspace;
 
-    my $model = $c->fetch('model')->get;
-    my $repo  = $c->fetch('repository')->get;
-    my $rules = $c->fetch('path_rules')->get;
+    my $model = $c->fetch('Model/instance')->get;
+    my $repo  = $c->fetch('Repository/instance')->get;
+    my $path  = $c->fetch('Path')->get;
     my $scope = $model->new_scope;
+    my $stream = Gat::FileStream->new(files => $files);
 
-    for my $file (@$files) {
-        die "invalid path: $file"    unless $rules->is_valid($file);
-        die "disallowed path: $file" unless $rules->is_allowed($file) or $self->force;
 
-        my $cfile    = $rules->canonical($file);
-        my $afile    = $rules->absolute($file);
+    until ($stream->is_done) {
+        for my $file ($stream->items) {
+            die "invalid path: $file"    unless $path->is_valid($file);
+            die "disallowed path: $file" unless $path->is_allowed($file) or $self->force;
 
-        my ($checksum, $stat) = $repo->insert($afile);
-        $model->add_label($cfile, $checksum, $stat->size);
+            my $cfile = $path->canonical($file);
+            my $afile = $path->absolute($file);
+
+            my ($checksum, $stat) = $repo->insert($afile);
+            $model->add_label($cfile, $checksum, $stat->size);
+        }
     }
 }
 

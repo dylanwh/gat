@@ -5,11 +5,11 @@ use Test::More;
 use Test::Exception;
 use Path::Class;
 
-use ok 'Gat::Path::Rules';
+use ok 'Gat::Path';
 
 my $cwd = dir('.')->absolute;
 
-my $path = Gat::Path::Rules->new(
+my $path = Gat::Path->new(
     work_dir => $cwd->subdir('src'),
     base_dir => $cwd,
     gat_dir  => $cwd->subdir('.gat'),

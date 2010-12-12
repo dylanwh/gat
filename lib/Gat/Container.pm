@@ -31,12 +31,27 @@ has 'base_dir' => (
     is       => 'ro',
     isa      => AbsoluteDir,
     coerce   => 1,
-    predicate => 'has_base_dir',
+    lazy     => 1,
+    builder => '_build_base_dir',
 );
+
+sub _build_base_dir {
+    my ($self) = @_;
+    my $work = $self->work_dir;
+    my $root = dir('');
+    my $base = $work;
+
+    until (-d $base->subdir('.gat')) {
+        $base = $base->parent;
+        return $work if $base eq $root;
+    }
+
+    return $base;
+}
 
 sub check_workspace {
     my ($self) = @_;
-    my $gd = $self->fetch('gat_dir')->get;
+    my $gd = $self->base_dir->subdir('.gat');
     my $ok = -d $gd && -f $gd->file('config') && -d $gd->subdir('asset');
     die "Invalid gat workspace (did you forget to run gat init?)\n" unless $ok;
 }
@@ -45,40 +60,42 @@ sub BUILD {
     my ($self)   = @_;
 
     container $self => as {
-        service work_dir  => $self->work_dir;
-        service base_dir => (
-            block => sub {
-                $self->has_base_dir ? $self->base_dir : find_base_dir( $self->work_dir );
+        service work_dir => $self->work_dir;
+        service base_dir => $self->base_dir;
+
+        service Rules => (
+            block        => sub {
+                require Gat::Rules;
+                my $rules = Gat::Rules->new;
+                $rules->load( $_[0]->param('base_dir') );
+                return $rules;
+            },
+            dependencies => wire_names(qw[ base_dir ]),
+        );
+
+        service Path => (
+            class        => 'Gat::Path',
+            dependencies => {
+                rules    => depends_on('Rules'),
+                base_dir => depends_on('base_dir'),
+                work_dir => depends_on('work_dir'),
             },
         );
-        service gat_dir => (
-            block => sub { $_[0]->param('base_dir')->subdir('.gat') },
-            dependencies => wire_names('base_dir'),
-        );
 
-        service 'predicates' => (
-            block => sub {
-                my ($p)   = @_;
-                my $file  = $p->param('gat_dir')->file('rules');
-
-                return -f $file ? parse_rules($file) : [];
+        service Config => (
+            block        => sub {
+                require Gat::Config;
+                my $cfg = Gat::Config->new;
+                $cfg->load( $_[0]->param('base_dir') );
+                return $cfg;
             },
-            dependencies => wire_names('gat_dir'),
-        );
-        service 'path_rules' => (
-            class        => 'Gat::Path::Rules',
-            dependencies => wire_names(qw[ predicates work_dir base_dir gat_dir ]),
-        );
-
-        service config => (
-            class        => 'Gat::Config',
-            dependencies => wire_names(qw[ gat_dir ]),
+            dependencies => wire_names(qw[ base_dir ]),
         );
 
         container 'Model' => as {
             service model_dir => (
-                block        => sub       { $_[0]->param('gat_dir')->subdir('model') },
-                dependencies => { gat_dir => depends_on('/gat_dir') },
+                block        => sub { $_[0]->param('base_dir')->subdir('.gat/model') },
+                dependencies => { base_dir => depends_on('/base_dir') },
             );
             service dsn        => 'bdb';
             service extra_args => (
@@ -100,22 +117,22 @@ sub BUILD {
 
         container 'Repository' => as {
             service asset_dir => (
-                block => sub { $_[0]->param('gat_dir')->subdir('asset') },
-                dependencies => { gat_dir => depends_on('/gat_dir') },
+                block        => sub       { $_[0]->param('base_dir')->subdir('.gat/asset') },
+                dependencies => { base_dir => depends_on('/base_dir') },
             );
             service use_symlinks => (
                 block => sub {
                     my $cfg = $_[0]->param('config');
-                    $cfg->get(key => 'repository.use_symlinks', as => 'bool');
+                    $cfg->get( key => 'repository.use_symlinks', as => 'bool' );
                 },
-                dependencies => { config => depends_on('/config') },
+                dependencies => { config => depends_on('/Config') },
             );
             service digest_type => (
                 block => sub {
                     my $cfg = $_[0]->param('config');
-                    $cfg->get(key => 'repository.digest_type');
+                    $cfg->get( key => 'repository.digest_type' );
                 },
-                dependencies => { config => depends_on('/config') },
+                dependencies => { config => depends_on('/Config') },
             );
 
             service instance => (

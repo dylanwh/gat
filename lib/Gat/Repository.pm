@@ -103,11 +103,11 @@ sub insert {
     move_reliable($file, $asset_file); # move the file over.
     chmod('a-w', $asset_file);         # remove write perms.
 
-    $self->assign($file, $checksum);
+    $self->attach($file, $checksum);
     return wantarray ? ($checksum, $info) : $checksum;
 }
 
-sub assign {
+sub attach {
     my $self = shift;
     my ($file, $checksum) = pos_validated_list(
         \@_,

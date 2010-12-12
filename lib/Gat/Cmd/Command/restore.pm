@@ -9,22 +9,20 @@ sub execute {
     my $c = Gat::Container->new(work_dir => $self->work_dir->absolute);
 
     $c->check_workspace;
-    my $model = $c->fetch('model')->get;
-    my $repo  = $c->fetch('repository')->get;
-    my $rules = $c->fetch('path_rules')->get;
+    my $path  = $c->fetch('Path')->get;
+    my $model = $c->fetch('Model/instance')->get;
+    my $repo  = $c->fetch('Repository/instance')->get;
 
     for my $file (@$files) {
-        die "invalid path: $file"    unless $rules->is_valid($file);
-        die "disallowed path: $file" unless $rules->is_allowed($file) or $self->force;
+        die "invalid path: $file"    unless $path->is_valid($file);
+        die "disallowed path: $file" unless $path->is_allowed($file) or $self->force;
 
         my $scope    = $model->new_scope;
-        my $cfile    = $rules->canonical($file);
-        my $afile    = $rules->absolute($file);
+        my $cfile    = $path->canonical($file);
+        my $afile    = $path->absolute($file);
 
         my $label = $model->lookup_label($cfile);
-        if ($label) {
-            $repo->assign($afile, $label->checksum);
-        }
+        $repo->attach($afile, $label->checksum) if $label;
     }
 }
 
