@@ -14,6 +14,7 @@ use Gat::Config;
 use Gat::Repository;
 use Gat::Model;
 use Gat::Types 'AbsoluteDir';
+use Gat::Util ':all';
 
 extends 'Bread::Board::Container';
 
@@ -45,25 +46,10 @@ sub BUILD {
 
     container $self => as {
         service work_dir  => $self->work_dir;
-        service base_dir  => (
+        service base_dir => (
             block => sub {
-                if ($self->has_base_dir) {
-                    return $self->base_dir;
-                }
-                else {
-                    my $wd = $_[0]->param('work_dir');
-                    my $root = dir('');
-                    my $base = $wd;
-
-                    until ($base eq $root || -d $base->subdir('.gat')) {
-                        $base = $base->parent;
-                    }
-                    
-                    return $wd if $base eq $root;
-                    return $base;
-                }
+                $self->has_base_dir ? $self->base_dir : find_base_dir( $self->work_dir );
             },
-            dependencies => wire_names('work_dir'),
         );
         service gat_dir => (
             block => sub { $_[0]->param('base_dir')->subdir('.gat') },
@@ -74,26 +60,8 @@ sub BUILD {
             block => sub {
                 my ($p)   = @_;
                 my $file  = $p->param('gat_dir')->file('rules');
-                my @predicates;
 
-                if (-f $file) {
-                    my $fh = $file->openr;
-                    local $_;
-
-                    while ($_ = $fh->getline) {
-                        chomp;
-                        if (/^!(.+)$/) {
-                            push @predicates, [qr/$1/ => 0 ];
-                        }
-                        elsif (/^\s*#/) {
-                            next;
-                        }
-                        else {
-                            push @predicates, [qr/$_/ => 1 ];
-                        }
-                    }
-                }
-                return \@predicates;
+                return -f $file ? parse_rules($file) : [];
             },
             dependencies => wire_names('gat_dir'),
         );
@@ -107,53 +75,54 @@ sub BUILD {
             dependencies => wire_names(qw[ gat_dir ]),
         );
 
+        container 'Model' => as {
+            service model_dir => (
+                block        => sub       { $_[0]->param('gat_dir')->subdir('model') },
+                dependencies => { gat_dir => depends_on('/gat_dir') },
+            );
+            service dsn        => 'bdb';
+            service extra_args => (
+                block => sub {
+                    return {
+                        manager => {
+                            create => 1,
+                            home   => $_[0]->param('model_dir'),
+                        },
+                    };
+                },
+                dependencies => wire_names(qw[ model_dir ]),
+            );
+            service instance => (
+                class        => 'Gat::Model',
+                dependencies => wire_names(qw[ dsn extra_args ]),
+            );
+        };
 
-        service model_dir => (
-            block => sub { $_[0]->param('gat_dir')->subdir('model') },
-            dependencies => wire_names('gat_dir'),
-        );
-        service model_dsn  => 'bdb';
-        service model_args => (
-            block => sub {
-                return {
-                    manager => {
-                        create => 1,
-                        home   => $_[0]->param('model_dir'),
-                    },
-                }
-            },
-            dependencies => wire_names(qw[ model_dir ]),
-        );
-        service model => (
-            class        => 'Gat::Model',
-            dependencies => {
-                dsn        => depends_on('model_dsn'),
-                extra_args => depends_on('model_args'),
-            },
-        );
+        container 'Repository' => as {
+            service asset_dir => (
+                block => sub { $_[0]->param('gat_dir')->subdir('asset') },
+                dependencies => { gat_dir => depends_on('/gat_dir') },
+            );
+            service use_symlinks => (
+                block => sub {
+                    my $cfg = $_[0]->param('config');
+                    $cfg->get(key => 'repository.use_symlinks', as => 'bool');
+                },
+                dependencies => { config => depends_on('/config') },
+            );
+            service digest_type => (
+                block => sub {
+                    my $cfg = $_[0]->param('config');
+                    $cfg->get(key => 'repository.digest_type');
+                },
+                dependencies => { config => depends_on('/config') },
+            );
 
-        service asset_dir => (
-            block => sub { $_[0]->param('gat_dir')->subdir('asset') },
-            dependencies => wire_names('gat_dir'),
-        );
-        service use_symlinks => (
-            block => sub {
-                my $cfg = $_[0]->param('config');
-                $cfg->get(key => 'repository.use_symlinks', as => 'bool');
-            },
-            dependencies => wire_names('config'),
-        );
-        service digest_type => (
-            block => sub {
-                my $cfg = $_[0]->param('config');
-                $cfg->get(key => 'repository.digest_type');
-            },
-            dependencies => wire_names('config'),
-        );
-        service repository => (
-            class        => 'Gat::Repository',
-            dependencies => wire_names(qw[ use_symlinks digest_type asset_dir ]),
-        );
+            service instance => (
+                class        => 'Gat::Repository',
+                dependencies => wire_names(qw[ use_symlinks digest_type asset_dir ]),
+            );
+        };
     };
 }
 
