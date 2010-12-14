@@ -15,10 +15,10 @@ sub execute {
     );
 
     my $base_dir = $c->fetch('/base_dir')->get;
-    my $gat_dir = $base_dir->subdir('.gat');
+    my $gat_dir  = $base_dir->subdir('.gat');
     $gat_dir->mkpath( $self->verbose );
-    $gat_dir->subdir('asset')->mkpath( $self->verbose );
     $gat_dir->subdir('model')->mkpath( $self->verbose );
+    $gat_dir->subdir('asset')->mkpath( $self->verbose );
 
     my $rules_file = $gat_dir->file('rules');
     $rules_file->openw->print("");
@@ -30,12 +30,6 @@ sub execute {
         key      => 'repository.use_symlinks',
         value    => 0,
         as       => 'bool',
-        filename => $config_file,
-    );
-
-    $config->set(
-        key      => 'repository.digest_type',
-        value    => 'MD5',
         filename => $config_file,
     );
 

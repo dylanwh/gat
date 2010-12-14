@@ -117,27 +117,12 @@ sub BUILD {
 
         container 'Repository' => as {
             service asset_dir => (
-                block        => sub       { $_[0]->param('base_dir')->subdir('.gat/asset') },
+                block        => sub { $_[0]->param('base_dir')->subdir('.gat/asset') },
                 dependencies => { base_dir => depends_on('/base_dir') },
             );
-            service use_symlinks => (
-                block => sub {
-                    my $cfg = $_[0]->param('config');
-                    $cfg->get( key => 'repository.use_symlinks', as => 'bool' );
-                },
-                dependencies => { config => depends_on('/Config') },
-            );
-            service digest_type => (
-                block => sub {
-                    my $cfg = $_[0]->param('config');
-                    $cfg->get( key => 'repository.digest_type' );
-                },
-                dependencies => { config => depends_on('/Config') },
-            );
-
             service instance => (
                 class        => 'Gat::Repository',
-                dependencies => wire_names(qw[ use_symlinks digest_type asset_dir ]),
+                dependencies => wire_names(qw[ asset_dir ]),
             );
         };
     };

@@ -19,9 +19,11 @@ sub execute {
 
     $c->check_workspace;
 
-    my $model = $c->fetch('Model/instance')->get;
-    my $repo  = $c->fetch('Repository/instance')->get;
-    my $path  = $c->fetch('Path')->get;
+    my $model  = $c->fetch('Model/instance')->get;
+    my $repo   = $c->fetch('Repository/instance')->get;
+    my $path   = $c->fetch('Path')->get;
+    my $config = $c->fetch('Config')->get;
+
     my $scope = $model->new_scope;
     my $stream = Gat::FileStream->new(files => $files);
 
@@ -34,7 +36,12 @@ sub execute {
             my $cfile = $path->canonical($file);
             my $afile = $path->absolute($file);
 
-            my ($checksum, $stat) = $repo->insert($afile);
+            my ($checksum, $stat) = $repo->insert(file => $afile);
+            $repo->attach(
+                file     => $afile,
+                checksum => $checksum,
+                symlink  => $config->get( key => 'repository.use_symlinks', as => 'bool' ),
+            );
             $model->add_label($cfile, $checksum, $stat->size);
         }
     }

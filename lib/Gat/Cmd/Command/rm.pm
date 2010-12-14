@@ -19,17 +19,19 @@ sub execute {
     $c->check_workspace;
 
     my $model = $c->fetch('Model/instance')->get;
+    my $repo  = $c->fetch('Repository/instance')->get;
     my $path  = $c->fetch('Path')->get;
     my $scope = $model->new_scope;
 
     for my $file (@$files) {
         die "invalid path: $file\n"    unless $path->is_valid($file);
         die "disallowed path: $file\n" unless $path->is_allowed($file) or $self->force;
-        die "still exists: $file\n"    if -f $file;
 
-        my $cfile = $path->canonical($file);
-
-        $model->remove_label($cfile);
+        my $cfile    = $path->canonical($file);
+        my $afile    = $path->absolute($file);
+        my $checksum = $model->remove_label($cfile);
+        $repo->detach( file => $afile, checksum => $checksum ) if -e $afile;
+        $repo->remove( checksum => $checksum );
     }
 }
 

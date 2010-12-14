@@ -15,17 +15,15 @@ my $repo = Gat::Repository->new( asset_dir => $asset_dir );
 
 $root->file('pants.txt')->openw->print('hello, world');
 
-my $checksum = $repo->insert( $root->file('pants.txt') );
+my $checksum = $repo->insert( file => $root->file('pants.txt') );
+$repo->attach(file => $root->file('pants.txt'), checksum => $checksum);
 ok(-f $root->file('pants.txt') );
 unlink $root->file('pants.txt');
 ok(!-f $root->file('pants.txt') );
-$repo->assign( $root->file('pants.txt'), $checksum );
+$repo->attach( file => $root->file('pants.txt'), checksum => $checksum );
 ok(-f $root->file('pants.txt') );
 
-is($checksum, 'e4d7f1b4ed2e42d15898f4b27b019da4');
-is($root->file(readlink($root->file('pants.txt'))), $repo->fetch($checksum));
-
-$repo->remove($checksum);
-ok(!-f $repo->resolve($checksum));
+$repo->remove(checksum => $checksum);
+ok(!-f $repo->_resolve($checksum));
 
 done_testing;
