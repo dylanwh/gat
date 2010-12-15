@@ -112,6 +112,66 @@ sub add {
     }
 }
 
+sub hide {
+    my $self = shift;
+    my ($verbose, $force, $files) = validated_list(
+        \@_,
+        verbose => { isa => Bool, default => 1 },
+        force   => { isa => Bool, default => 0 },
+        files   => { does => 'Data::Stream::Bulk' },
+    );
+    my $path   = $self->path;
+    my $model  = $self->model;
+    my $repo   = $self->repository;
+    my $scope  = $model->new_scope;
+
+    until ($files->is_done) {
+        for my $file ($files->items) {
+            die "invalid path: $file"    unless $path->is_valid($file);
+            die "disallowed path: $file" unless $path->is_allowed($file) or $force;
+
+            my $cfile = $path->canonical($file);
+            my $afile = $path->absolute($file);
+
+            my $checksum = $model->lookup_label($cfile)->checksum;
+            $repo->detach(
+                file     => $afile,
+                checksum => $checksum,
+            );
+        }
+    }
+}
+
+sub unhide {
+    my $self = shift;
+    my ($verbose, $force, $files) = validated_list(
+        \@_,
+        verbose => { isa => Bool, default => 1 },
+        force   => { isa => Bool, default => 0 },
+    );
+    my $path   = $self->path;
+    my $config   = $self->config;
+    my $model  = $self->model;
+    my $repo   = $self->repository;
+    my $scope  = $model->new_scope;
+    my $stream = $repo->checksums;
+
+    until ($stream->is_done) {
+        for my $checksum ($stream->items) {
+            my $asset = $model->lookup_asset($checksum);
+            for my $file ($asset->files) {
+                my $afile = $path->base_dir->file( $file );
+
+                $repo->attach(
+                    file=> $afile,
+                    checksum => $checksum,
+                    symlink  => $config->get( key => 'repository.use_symlinks', as => 'bool' ),
+                ) unless -f $afile;
+            }
+        }
+    }
+}
+
 sub remove {
     my $self = shift;
     my ( $verbose, $force, $files ) = validated_list(
