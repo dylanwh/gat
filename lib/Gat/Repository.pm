@@ -31,11 +31,12 @@ has 'asset_dir' => (
     required => 1,
 );
 
-has 'format' => (
+has 'digest_type' => (
     is      => 'ro',
     isa     => Str,
     default => 'MD5',
 );
+
 
 sub BUILD {
     my ($self) = @_;
@@ -45,7 +46,7 @@ sub BUILD {
 sub _compute_checksum {
     my $self   = shift;
     my ($file) = pos_validated_list(\@_, { isa => File, coerce => 1 });
-    my $digest = Digest->new($self->format);
+    my $digest = Digest->new($self->digest_type);
 
     try {
         my $fh = $file->openr;
@@ -94,7 +95,8 @@ sub _is_attached {
     }
 }
 
-sub insert {
+
+sub store {
     my $self = shift;
     my ($file) = validated_list(
         \@_,
@@ -196,9 +198,7 @@ sub detach {
     }
 }
 
-
-
-sub assets {
+sub checksums {
     my ($self) = @_;
 
     return Data::Stream::Bulk::Filter->new(

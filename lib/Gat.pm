@@ -1,61 +1,180 @@
 # ABSTRACT: A Glorious Asset Tracker
 
 package Gat;
-use strictures;
+use Moose;
+use namespace::autoclean;
 
-use Gat::Container;
 use MooseX::Types::Moose ':all';
 use MooseX::Types::Path::Class ':all';
 use MooseX::Params::Validate;
+use KiokuDB::Cmd::Command::Dump;
+use KiokuDB::Cmd::Command::Load;
 
-# Gat::init( { work_dir => Dir } )
-# Gat::add({ work_dir => Dir, files => ArrayRef[File], force => Bool })
-# Gat::rm({ work_dir => Dir, files => ArrayRef[File] });
-# Gat::manifest 
+use Gat::Types ':all';
 
-sub init {
-    my ($work_dir, $verbose) = validated_list(\@_, 
-        work_dir => { isa => Dir, coerce => 1 },
-        verbose  => { isa => Bool, default => 0 },
+has 'model' => (
+    is       => 'ro',
+    isa      => 'Gat::Model',
+    required => 1,
+);
+
+has 'repository' => (
+    is       => 'ro',
+    isa      => 'Gat::Repository',
+    required => 1,
+);
+
+has 'path' => (
+    is       => 'ro',
+    isa      => 'Gat::Path',
+    required => 1,
+);
+
+has 'config' => (
+    is       => 'ro',
+    isa      => 'Gat::Config',
+    required => 1,
+);
+
+has 'remotes' => (
+    traits  => ['Hash'],
+    is      => 'ro',
+    isa     => HashRef [Remote],
+    default => sub { {} },
+    handles => {
+        remote      => 'get',
+        has_remotes => 'count',
+    },
+);
+
+has 'base_dir' => (
+    is       => 'ro',
+    isa      => AbsoluteDir,
+    coerce   => 1,
+    required => 1,
+);
+
+sub check_workspace {
+    my ($self) = @_;
+    my $gd = $self->base_dir->subdir('.gat');
+    my $ok = -d $gd && -f $gd->file('config') && -d $gd->subdir('asset');
+    die "Invalid gat workspace (did you forget to run gat init?)\n" unless $ok;
+}
+
+sub push {
+    my $self = shift;
+    my ($remote, $checksums) = validated_list(
+        \@_,
+        remote    => { isa => Str },
+        checksums => { does => 'Data::Stream::Bulk', optional => 1 },
     );
+}
 
+sub pull {
+    my $self = shift;
+    my ($remote, $checksums) = validated_list(
+        \@_,
+        remote    => { isa => Str },
+        checksums => { does => 'Data::Stream::Bulk', optional => 1 },
+    );
 }
 
 sub add {
-    my ($work_dir, $verbose) = validated_list(\@_, 
-        work_dir => { isa => Dir, coerce => 1 },
-        verbose  => { isa => Bool, default => 0 },
-        files    => { isa => ArrayRef[File|Str] },
+    my $self = shift;
+    my ($verbose, $force, $files) = validated_list(
+        \@_,
+        verbose => { isa => Bool, default => 1 },
+        force   => { isa => Bool, default => 0 },
+        files   => { does => 'Data::Stream::Bulk' },
     );
+    my $path   = $self->path;
+    my $config = $self->config;
+    my $model  = $self->model;
+    my $repo   = $self->repository;
+    my $scope  = $model->new_scope;
 
-    my $c = Gat::Container->new(
-        work_dir => $work_dir->absolute,
-        base_dir => $work_dir->absolute,
-    );
+    until ($files->is_done) {
+        for my $file ($files->items) {
+            die "invalid path: $file"    unless $path->is_valid($file);
+            die "disallowed path: $file" unless $path->is_allowed($file) or $force;
 
-    my $gat_dir = $c->fetch('gat_dir')->get;
+            my $cfile = $path->canonical($file);
+            my $afile = $path->absolute($file);
 
-    $gat_dir->mkpath($verbose);
-    $gat_dir->subdir('asset')->mkpath($verbose);
-
-    my $config_file = $gat_dir->file('config');
-    my $config = $c->fetch('config')->get;
-
-    $config->set(
-        key      => 'repository.use_symlinks',
-        value    => 0,
-        as       => 'bool',
-        filename => $config_file,
-    );
-
-    $config->set(
-        key      => 'repository.digest_type',
-        value    => 'MD5',
-        filename => $config_file,
-    );
-
-
+            my ($checksum, $stat) = $repo->store(file => $afile);
+            $repo->attach(
+                file     => $afile,
+                checksum => $checksum,
+                symlink  => $config->get( key => 'repository.use_symlinks', as => 'bool' ),
+            );
+            $model->add_label($cfile, $checksum, $stat->size);
+        }
+    }
 }
 
+sub remove {
+    my $self = shift;
+    my ( $verbose, $force, $files ) = validated_list(
+        \@_,
+        verbose => { isa  => Bool, default => 1 },
+        force   => { isa  => Bool, default => 0 },
+        files   => { does => 'Data::Stream::Bulk' },
+    );
+
+    my $path   = $self->path;
+    my $config = $self->config;
+    my $model  = $self->model;
+    my $repo   = $self->repository;
+    my $scope  = $model->new_scope;
+
+    until ( $files->is_done ) {
+        for my $file ( $files->items ) {
+            die "invalid path: $file" unless $path->is_valid($file);
+            my $cfile    = $path->canonical($file);
+            my $afile    = $path->absolute($file);
+            my $checksum = $model->remove_label($cfile);
+            
+            if (-f $afile) {
+                die "Will not detach $file from $checksum without --force" unless $force;
+                $repo->detach( file => $afile, checksum => $checksum );
+            }
+            $repo->remove( checksum => $checksum );
+        }
+    }
+}
+
+sub export_model {
+    my $self = shift;
+    my ($file) = validated_list( \@_,
+        file => { isa => File, coerce => 1, optional => 1 },
+    );
+    my $model = $self->model;
+
+    my $dumper = KiokuDB::Cmd::Command::Dump->new(
+        backend       => $model->directory->backend,
+        output_handle => $file ? $file->openw : \*STDOUT,
+    );
+
+    $dumper->run;
+}
+
+sub import_model {
+    my $self = shift;
+    my ($file) = validated_list( \@_,
+        file => { isa => File, coerce => 1, optional => 1 },
+    );
+    my $model = $self->model;
+
+    my $loader = KiokuDB::Cmd::Command::Load->new(
+        backend       => $model->directory->backend,
+        input_handle => $file ? $file->openr : \*STDIN,
+    );
+
+    my $scope = $model->new_scope;
+    $model->directory->backend->clear();
+    $loader->run;
+}
+
+__PACKAGE__->meta->make_immutable;
 
 1;

@@ -49,13 +49,6 @@ sub _build_base_dir {
     return $base;
 }
 
-sub check_workspace {
-    my ($self) = @_;
-    my $gd = $self->base_dir->subdir('.gat');
-    my $ok = -d $gd && -f $gd->file('config') && -d $gd->subdir('asset');
-    die "Invalid gat workspace (did you forget to run gat init?)\n" unless $ok;
-}
-
 sub BUILD {
     my ($self)   = @_;
 
@@ -92,39 +85,51 @@ sub BUILD {
             dependencies => wire_names(qw[ base_dir ]),
         );
 
-        container 'Model' => as {
-            service model_dir => (
-                block        => sub { $_[0]->param('base_dir')->subdir('.gat/model') },
-                dependencies => { base_dir => depends_on('/base_dir') },
-            );
-            service dsn        => 'bdb';
-            service extra_args => (
-                block => sub {
-                    return {
-                        manager => {
-                            create => 1,
-                            home   => $_[0]->param('model_dir'),
-                        },
-                    };
-                },
-                dependencies => wire_names(qw[ model_dir ]),
-            );
-            service instance => (
-                class        => 'Gat::Model',
-                dependencies => wire_names(qw[ dsn extra_args ]),
-            );
-        };
+        service model_dir => (
+            block        => sub { $_[0]->param('base_dir')->subdir('.gat/model') },
+            dependencies => { base_dir => depends_on('base_dir') },
+        );
+        service dsn        => 'bdb';
+        service extra_args => (
+            block => sub {
+                return {
+                    manager => {
+                        create => 1,
+                        home   => $_[0]->param('model_dir'),
+                    },
+                };
+            },
+            dependencies => wire_names(qw[ model_dir ]),
+        );
+        service Model => (
+            class        => 'Gat::Model',
+            dependencies => wire_names(qw[ dsn extra_args ]),
+        );
 
-        container 'Repository' => as {
-            service asset_dir => (
-                block        => sub { $_[0]->param('base_dir')->subdir('.gat/asset') },
-                dependencies => { base_dir => depends_on('/base_dir') },
-            );
-            service instance => (
-                class        => 'Gat::Repository',
-                dependencies => wire_names(qw[ asset_dir ]),
-            );
-        };
+        service asset_dir => (
+            block        => sub { $_[0]->param('base_dir')->subdir('.gat/asset') },
+            dependencies => { base_dir => depends_on('base_dir') },
+        );
+        service digest_type => (
+            block        => sub { $_[0]->param('config')->get(key => 'repository.digest_type') or die },
+            dependencies => { config => depends_on('Config') },
+        );
+        service Repository => (
+            class        => 'Gat::Repository',
+            dependencies => wire_names(qw[ asset_dir digest_type ]),
+        );
+
+        service 'App' => (
+            class        => 'Gat',
+            dependencies => {
+                config     => depends_on('Config'),
+                path       => depends_on('Path'),
+                model      => depends_on('Model'),
+                repository => depends_on('Repository'),
+                base_dir   => depends_on('base_dir'),
+            },
+        );
+
     };
 }
 

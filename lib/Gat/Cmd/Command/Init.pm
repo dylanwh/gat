@@ -1,4 +1,4 @@
-package Gat::Cmd::Command::init;
+package Gat::Cmd::Command::Init;
 use Moose;
 use namespace::autoclean;
 
@@ -14,7 +14,7 @@ sub execute {
         base_dir => $self->work_dir->absolute,
     );
 
-    my $base_dir = $c->fetch('/base_dir')->get;
+    my $base_dir = $c->fetch('base_dir')->get;
     my $gat_dir  = $base_dir->subdir('.gat');
     $gat_dir->mkpath( $self->verbose );
     $gat_dir->subdir('model')->mkpath( $self->verbose );
@@ -24,7 +24,7 @@ sub execute {
     $rules_file->openw->print("");
 
     my $config_file = $gat_dir->file('config');
-    my $config = $c->fetch('/Config')->get;
+    my $config = $c->fetch('Config')->get;
 
     $config->set(
         key      => 'repository.use_symlinks',
@@ -33,7 +33,15 @@ sub execute {
         filename => $config_file,
     );
 
-    my $model = $c->fetch('Model/instance')->get;
+   $config->set(
+        key      => 'repository.digest_type',
+        value    => 'MD5',
+        filename => $config_file,
+    );
+
+
+
+    my $model = $c->fetch('Model')->get;
 }
 
 __PACKAGE__->meta->make_immutable;

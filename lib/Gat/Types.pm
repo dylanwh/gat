@@ -2,6 +2,7 @@ package Gat::Types;
 use MooseX::Types -declare => [
     qw[ 
         Label Asset  Checksum
+        Remote
         Path
         AbsoluteDir  AbsoluteFile
         RelativeDir  RelativeFile
@@ -17,6 +18,7 @@ use Path::Class;
 class_type Label, { class => 'Gat::Schema::Label' };
 class_type Asset, { class => 'Gat::Schema::Asset' };
 class_type Path,  { class => 'Path::Class::Entity' };
+role_type  Remote, { class => 'Gat::Remote' };
 
 subtype Checksum, as Str, where { length $_ > 2 };
 
@@ -24,7 +26,6 @@ subtype AbsoluteDir,
     as Dir, 
     where { $_->is_absolute },
     message { "$_ is not absolute dir" };
-
 
 subtype RelativeDir,
     as Dir,
