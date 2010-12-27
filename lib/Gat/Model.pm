@@ -77,6 +77,21 @@ sub remove_label {
     return $asset->checksum;
 }
 
+sub files {
+    my ($self) = @_;
+
+    Data::Stream::Bulk::Filter->new(
+        filter => sub {
+            return [
+                map { $_->filename }
+                grep { $_->isa('Gat::Schema::Label') }
+                @$_
+            ]
+        },
+        stream => $self->all_objects
+    );
+}
+
 sub manifest {
     my ($self) = @_;
 

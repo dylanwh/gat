@@ -112,6 +112,27 @@ sub add {
     }
 }
 
+sub print_files {
+    my $self = shift;
+    my ($output, $null) = validated_list(
+        \@_,
+        output   => { isa => FileHandle, default => \*STDOUT },
+        null => { isa => Bool, default => 0 },
+    );
+    my $path  = $self->path;
+    my $model = $self->model;
+    my $scope = $model->new_scope;
+    my $files = $model->files;
+
+    local $\ = $null ? "\0" : "\n";
+    local $, = $\;
+
+    until ($files->is_done) {
+        my @files = $files->items;
+        print $output @files if @files;
+    }
+}
+
 sub hide {
     my $self = shift;
     my ($verbose, $force, $files) = validated_list(
