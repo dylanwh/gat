@@ -4,14 +4,15 @@ package Gat::Repository;
 use Moose;
 use namespace::autoclean;
 use strictures 1;
-use autodie;
 
-use File::Copy::Reliable 'move_reliable';
+use File::Copy::Reliable 'move_reliable', 'copy_reliable';
 use File::Basename;
 use File::stat;
 use File::chmod;
 use Digest;
 use Carp;
+
+use autodie;
 
 use Data::Stream::Bulk::Path::Class;
 use Data::Stream::Bulk::Filter;
@@ -37,13 +38,12 @@ has 'digest_type' => (
     default => 'MD5',
 );
 
-
 sub BUILD {
     my ($self) = @_;
     croak "Repository->asset_dir does not exist!" unless -d $self->asset_dir;
 }
 
-sub _compute_checksum {
+sub _checksum {
     my $self   = shift;
     my ($file) = pos_validated_list(\@_, { isa => File, coerce => 1 });
     my $digest = Digest->new($self->digest_type);
@@ -59,23 +59,11 @@ sub _compute_checksum {
     return $digest->hexdigest;
 }
 
-sub _resolve {
+sub _asset_file {
     my ($self, $checksum) = @_;
     my $prefix = substr($checksum, 0, 2);
 
     return $self->asset_dir->subdir($prefix)->file(substr($checksum, 2));
-}
-
-sub _fetch {
-    my ($self, $checksum) = @_;
-    my $file = $self->_resolve($checksum);
-    
-    if (-f $file) {
-        return $file;
-    }
-    else {
-        Gat::Error->throw( message => "missing asset $file" )  unless -f $file;
-    }
 }
 
 sub _is_attached {
@@ -87,20 +75,23 @@ sub _is_attached {
     );
 
     if (-l $file) {
-        my $asset_file = $self->_fetch($checksum)->relative( $file->parent );
+        my $asset_file = $self->_asset_file($checksum)->relative( $file->parent );
         return readlink($file) eq $asset_file;
     }
+    elsif (-f _) {
+        return $self->_checksum($file) eq $checksum;
+    }
     else {
-        return $self->_compute_checksum($file) eq $checksum;
+        return undef;
     }
 }
 
-
 sub store {
     my $self = shift;
-    my ($file) = validated_list(
+    my ($file, $preserve) = validated_list(
         \@_,
-        file => { isa => AbsoluteFile, coerce => 1 },
+        file     => { isa => AbsoluteFile, coerce  => 1 },
+        preserve => { isa => Bool,         default => 0 },
     );
 
     my $stat = lstat($file);
@@ -108,76 +99,77 @@ sub store {
     Gat::Error->throw(message => "$file is not a regular file") unless -f _;
     Gat::Error->throw(message => "$file is a symlink")          if     -l _;
 
-    my $checksum   = $self->_compute_checksum($file);
-    my $asset_file = $self->_resolve($checksum);
+    my $checksum   = $self->_checksum($file);          # calculate checksum.
+    my $asset_file = $self->_asset_file($checksum);    # figure out path in asset dir.
+    $asset_file->parent->mkpath;                       # ensure path exists
+    if ($preserve) {
+        copy_reliable( $file, $asset_file );           # copy the file (preserve original)
+    }
+    else {
+        move_reliable( $file, $asset_file );           # move the file over (destroy original)
+    }
+    chmod( 'a-w', $asset_file );                       # remove write perms.
 
-    $asset_file->parent->mkpath;       # ensure path exists
-    move_reliable($file, $asset_file); # move the file over.
-    chmod('a-w', $asset_file);         # remove write perms.
-
-    return wantarray ? ($checksum, $stat) : $checksum;
+    return wantarray ? ( $checksum, $stat ) : $checksum;
 }
 
-sub move {
+sub fetch {
     my $self = shift;
-    my ( $file, $checksum ) = validated_list(
+    my ( $file, $checksum, $remove ) = validated_list(\@_,
         file     => { isa => AbsoluteFile, coerce => 1 },
         checksum => { isa => Checksum },
+        remove   => { isa => Bool, default => 0 },
     );
 
-    my $asset_file = $self->_fetch($checksum);
-    move_reliable($asset_file, $file);
-}
+    my $asset_file = $self->_asset_file($checksum);
+    Gat::Error->throw(message => "Missing asset for $checksum") unless -f $asset_file;
 
-sub copy {
-    my $self = shift;
-    my ( $file, $checksum ) = validated_list(
-        file     => { isa => AbsoluteFile, coerce => 1 },
-        checksum => { isa => Checksum },
-    );
-
-    my $asset_file = $self->_fetch($checksum);
-    copy_reliable($asset_file, $file);
+    if ($remove) {
+        move_reliable($asset_file, $file);
+    } else {
+        copy_reliable($asset_file, $file);
+    }
 }
 
 # most called during GC
+# this is a no-op if the assetfile does not exist.
 sub remove {
     my $self = shift;
-    my ($checksum) = validated_list(
-        \@_,
+    my ($checksum) = validated_list(\@_,
         checksum => { isa => Checksum },
     );
 
-    my $asset_file = $self->_resolve($checksum);
+    my $asset_file = $self->_asset_file($checksum);
     unlink($asset_file) if -f $asset_file;
 }
 
 sub attach {
     my $self = shift;
-    my ( $file, $checksum, $symlink ) = validated_list(
-        \@_,
+    my ( $file, $checksum, $symlink ) = validated_list(\@_,
         file     => { isa => AbsoluteFile, coerce  => 1 },
         checksum => { isa => Checksum },
         symlink  => { isa => Bool,         default => 1 },
     );
 
-    Gat::Error->throw( message => "Can't overwrite $file" ) if -e $file;
+    unless ($self->_is_attached($file, $checksum)) {
+        my $asset_file = $self->_asset_file($checksum);
+        $file->parent->mkpath;
 
-    my $asset_file = $self->_fetch($checksum);
-    $file->parent->mkpath;
+        Gat::Error->throw( message => "Can't overwrite $file" ) if -e $file;
+        Gat::Error->throw( message => "Missing asset for $checksum" ) unless -f $asset_file;
 
-    if ($symlink) {
-        symlink( $asset_file->relative($file->parent), $file );
-    }
-    else {
-        link( $asset_file, $file);
+        if ($symlink) {
+            symlink( $asset_file->relative($file->parent), $file );
+        }
+        else {
+            link( $asset_file, $file);
+        }
     }
 }
 
 sub detach {
     my $self = shift;
-    my ( $file, $checksum ) = validated_list(
-        \@_,
+    my ( $file, $checksum ) = validated_list(\@_,
         file     => { isa => AbsoluteFile, coerce => 1 },
         checksum => { isa => Checksum },
     );
@@ -202,7 +194,7 @@ sub checksums {
     my ($self) = @_;
 
     return Data::Stream::Bulk::Filter->new(
-        filter => sub { [ map { basename(dirname("$_")) . basename("$_") } @$_ ] },
+        filter => sub { [ map { basename($_->parent) . $_->basename } @$_ ] },
         stream => Data::Stream::Bulk::Path::Class->new(
             dir        => $self->asset_dir,
             only_files => 1,

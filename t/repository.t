@@ -15,7 +15,7 @@ my $repo = Gat::Repository->new( asset_dir => $asset_dir );
 
 $root->file('pants.txt')->openw->print('hello, world');
 
-my $checksum = $repo->insert( file => $root->file('pants.txt') );
+my $checksum = $repo->store( file => $root->file('pants.txt') );
 $repo->attach(file => $root->file('pants.txt'), checksum => $checksum);
 ok(-f $root->file('pants.txt') );
 unlink $root->file('pants.txt');
@@ -23,7 +23,16 @@ ok(!-f $root->file('pants.txt') );
 $repo->attach( file => $root->file('pants.txt'), checksum => $checksum );
 ok(-f $root->file('pants.txt') );
 
+lives_ok {
+    $repo->fetch(checksum => $checksum, file => $root->file("copy-of-pants.txt"));
+};
+
 $repo->remove(checksum => $checksum);
-ok(!-f $repo->_resolve($checksum));
+ok(!-f $repo->_asset_file($checksum));
+
+dies_ok {
+    $repo->fetch(checksum => $checksum, file => $root->file("copy-of-pants.txt"));
+};
+
 
 done_testing;
