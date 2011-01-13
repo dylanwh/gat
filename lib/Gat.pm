@@ -114,10 +114,11 @@ sub add {
 
 sub print_files {
     my $self = shift;
-    my ($output, $null) = validated_list(
+    my ( $output, $null, $filter ) = validated_list(
         \@_,
-        output   => { isa => FileHandle, default => \*STDOUT },
-        null => { isa => Bool, default => 0 },
+        output => { isa => FileHandle, default  => \*STDOUT },
+        null   => { isa => Bool,       default  => 0 },
+        filter => { isa => CodeRef,    optional => 1 },
     );
     my $path  = $self->path;
     my $model = $self->model;
@@ -128,7 +129,7 @@ sub print_files {
     local $, = $\;
 
     until ($files->is_done) {
-        my @files = $files->items;
+        my @files = $filter ? grep &$filter, $files->items : $files->items;
         print $output @files if @files;
     }
 }
@@ -154,11 +155,13 @@ sub hide {
             my $cfile = $path->canonical($file);
             my $afile = $path->absolute($file);
 
-            my $checksum = $model->lookup_label($cfile)->checksum;
-            $repo->detach(
-                file     => $afile,
-                checksum => $checksum,
-            );
+            my $label = $model->lookup_label($cfile);
+            if ($label) {
+                $repo->detach(
+                    file     => $afile,
+                    checksum => $label->checksum,
+                );
+            }
         }
     }
 }

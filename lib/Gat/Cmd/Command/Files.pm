@@ -19,7 +19,7 @@ sub execute {
     my $gat = $c->fetch('App')->get;
     $gat->check_workspace;
 
-    $gat->print_files(null => $self->null);
+    $gat->print_files(null => $self->null, filter => sub { -f $_ });
 }
 
 __PACKAGE__->meta->make_immutable;
