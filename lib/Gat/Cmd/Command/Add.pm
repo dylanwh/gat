@@ -17,10 +17,11 @@ sub execute {
         work_dir => $self->work_dir->absolute,
     );
 
+    my $path = $c->fetch('Path')->get;
     my $gat = $c->fetch('App')->get;
     $gat->check_workspace;
 
-    my $stream = Gat::FileStream->new(files => $files);
+    my $stream = Gat::FileStream->new(files => $files, filter => $path->filter );
     $gat->add( files => $stream, verbose => $self->verbose, force => $self->force );
 }
 

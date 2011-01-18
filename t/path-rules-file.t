@@ -11,8 +11,8 @@ use ok 'Gat::Rules';
 my $cwd = temp_root->absolute;
 
 $cwd->file('rules')->openw->print(
-    '^important' . "\n",
-    '!\\.bak$' . "\n",
+    '/^important/' . "\n",
+    '!/\\.bak$/' . "\n",
 );
 
 my $rules = Gat::Rules->new;

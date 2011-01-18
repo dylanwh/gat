@@ -17,10 +17,18 @@ sub execute {
         work_dir => $self->work_dir->absolute,
     );
 
-    my $gat = $c->fetch('App')->get;
+    my $gat   = $c->fetch('App')->get;
+    my $path  = $c->fetch('Path')->get;
+    my $model = $c->fetch('Model')->get;
+    my $scope = $model->new_scope;
     $gat->check_workspace;
 
-    my $stream = Gat::FileStream->new(files => $files);
+    my $stream = Data::Stream::Bulk::Filter->new(
+        filter => sub {
+            [ map { $path->base_dir->file($_) } @$_ ]
+        },
+        stream => $model->files,
+    );
     $gat->hide( files => $stream, verbose => $self->verbose, force => $self->force );
 }
 

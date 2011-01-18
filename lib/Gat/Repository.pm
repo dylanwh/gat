@@ -18,6 +18,7 @@ use Data::Stream::Bulk::Path::Class;
 use Data::Stream::Bulk::Filter;
 use Try::Tiny;
 
+use Moose::Util::TypeConstraints 'enum';
 use MooseX::Types::Path::Class 'File', 'Dir';
 use MooseX::Types::Moose ':all';
 use MooseX::Params::Validate;
@@ -36,6 +37,12 @@ has 'digest_type' => (
     is      => 'ro',
     isa     => Str,
     default => 'MD5',
+);
+
+has 'attach_method' => (
+    is      => 'ro',
+    isa     => enum([ 'link', 'symlink', 'copy' ]),
+    default => 'symlink',
 );
 
 sub BUILD {
@@ -78,6 +85,7 @@ sub _is_attached {
         my $asset_file = $self->_asset_file($checksum)->relative( $file->parent );
         return readlink($file) eq $asset_file;
     }
+    # FIXME: if on same fs, check inode number (if possible)
     elsif (-f _) {
         return $self->_checksum($file) eq $checksum;
     }
@@ -113,24 +121,6 @@ sub store {
     return wantarray ? ( $checksum, $stat ) : $checksum;
 }
 
-sub fetch {
-    my $self = shift;
-    my ( $file, $checksum, $remove ) = validated_list(\@_,
-        file     => { isa => AbsoluteFile, coerce => 1 },
-        checksum => { isa => Checksum },
-        remove   => { isa => Bool, default => 0 },
-    );
-
-    my $asset_file = $self->_asset_file($checksum);
-    Gat::Error->throw(message => "Missing asset for $checksum") unless -f $asset_file;
-
-    if ($remove) {
-        move_reliable($asset_file, $file);
-    } else {
-        copy_reliable($asset_file, $file);
-    }
-}
-
 # most called during GC
 # this is a no-op if the assetfile does not exist.
 sub remove {
@@ -145,10 +135,9 @@ sub remove {
 
 sub attach {
     my $self = shift;
-    my ( $file, $checksum, $symlink ) = validated_list(\@_,
+    my ( $file, $checksum, $method ) = validated_list(\@_,
         file     => { isa => AbsoluteFile, coerce  => 1 },
         checksum => { isa => Checksum },
-        symlink  => { isa => Bool,         default => 1 },
     );
 
     unless ($self->_is_attached($file, $checksum)) {
@@ -158,14 +147,26 @@ sub attach {
         Gat::Error->throw( message => "Can't overwrite $file" ) if -e $file;
         Gat::Error->throw( message => "Missing asset for $checksum" ) unless -f $asset_file;
 
-        if ($symlink) {
-            symlink( $asset_file->relative($file->parent), $file );
-        }
-        else {
-            link( $asset_file, $file);
-        }
+        my $attach_method = "_attach_" . $self->attach_method;
+        $self->$attach_method($asset_file, $file);
     }
 }
+
+sub _attach_link {
+    my ( $self, $asset_file, $file ) = @_;
+    link( $asset_file, $file );
+}
+
+sub _attach_symlink {
+    my ( $self, $asset_file, $file ) = @_;
+    symlink( $asset_file->relative( $file->parent ), $file );
+}
+
+sub _attach_copy {
+    my ( $self, $asset_file, $file ) = @_;
+    copy_reliable( $asset_file, $file );
+}
+
 
 sub detach {
     my $self = shift;

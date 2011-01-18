@@ -88,7 +88,6 @@ sub add {
         files   => { does => 'Data::Stream::Bulk' },
     );
     my $path   = $self->path;
-    my $config = $self->config;
     my $model  = $self->model;
     my $repo   = $self->repository;
     my $scope  = $model->new_scope;
@@ -105,7 +104,6 @@ sub add {
             $repo->attach(
                 file     => $afile,
                 checksum => $checksum,
-                symlink  => $config->get( key => 'repository.use_symlinks', as => 'bool' ),
             );
             $model->add_label($cfile, $checksum, $stat->size);
         }
@@ -174,7 +172,6 @@ sub unhide {
         force   => { isa => Bool, default => 0 },
     );
     my $path   = $self->path;
-    my $config   = $self->config;
     my $model  = $self->model;
     my $repo   = $self->repository;
     my $scope  = $model->new_scope;
@@ -189,7 +186,6 @@ sub unhide {
                 $repo->attach(
                     file=> $afile,
                     checksum => $checksum,
-                    symlink  => $config->get( key => 'repository.use_symlinks', as => 'bool' ),
                 ) unless -f $afile;
             }
         }
@@ -206,7 +202,6 @@ sub remove {
     );
 
     my $path   = $self->path;
-    my $config = $self->config;
     my $model  = $self->model;
     my $repo   = $self->repository;
     my $scope  = $model->new_scope;

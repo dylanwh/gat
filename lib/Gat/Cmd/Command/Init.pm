@@ -27,9 +27,8 @@ sub execute {
     my $config = $c->fetch('Config')->get;
 
     $config->set(
-        key      => 'repository.use_symlinks',
-        value    => 0,
-        as       => 'bool',
+        key      => 'repository.attach_method',
+        value    => 'symlink',
         filename => $config_file,
     );
 

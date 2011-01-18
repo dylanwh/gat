@@ -33,7 +33,22 @@ has 'gat_dir' => (
     lazy_build => 1,
 );
 
+has 'filter' => (
+    is         => 'ro',
+    isa        => 'CodeRef',
+    lazy_build => 1,
+);
+
 sub _build_gat_dir { $_[0]->base_dir->subdir('.gat') }
+
+sub _build_filter {
+    my $self = shift;
+    return sub { 
+        [ 
+            grep { $self->is_valid($_) && $self->_is_allowed( $self->canonical( $_ ) ) } @$_
+        ]
+    };
+}
 
 sub cleanup {
     my $self = shift;

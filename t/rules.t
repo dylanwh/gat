@@ -3,32 +3,31 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
-use Gat::Path;
 use Path::Class;
 
-use ok 'Gat::Path::Rules';
+use ok 'Gat::Rules';
 
 my $cwd = dir('.')->absolute;
 
-my $rules = Gat::Path::Rules->new(
-    work_dir => $cwd->subdir('src'),
-    base_dir => $cwd,
-    gat_dir  => $cwd->subdir('.gat'),
-    predicates => [ [ qr/\.bak$/ => 0 ], [ qr/~$/ => 0 ] ],
+my $rules = Gat::Rules->new(
+    work_dir   => $cwd->subdir('src'),
+    base_dir   => $cwd,
+    gat_dir    => $cwd->subdir('.gat'),
+    predicates => [ [ qr/\.bak$/ => 0 ], [ qr/~$/ => 0 ], ],
 );
 
 ok(!$rules->is_allowed('foo.bak'), "foo.bak is not allowed");
 
 # this one only allows jpg
-my $rules2 = Gat::Path::Rules->new(
+my $rules2 = Gat::Rules->new(
     work_dir => $cwd->subdir('src'),
     base_dir => $cwd,
     gat_dir  => $cwd->subdir('.gat'),
-    predicates => [ [ qr/\.jpg$/i => 1],  [qr/./ => 0 ] ],
+    predicates => [ [ qr/\.jpg$/i => 1 ], [ sub { 1 } => 0 ] ],
 );
 
-ok($rules2->is_allowed("$cwd/foo.jpg"), "allow jpg");
-ok(!$rules2->is_allowed("$cwd/foo.gif"), "disallow gif");
+ok($rules2->is_allowed("foo.jpg"), "allow jpg");
+ok(!$rules2->is_allowed("foo.gif"), "disallow gif");
 
 done_testing;
 

@@ -111,12 +111,18 @@ sub BUILD {
             dependencies => { base_dir => depends_on('base_dir') },
         );
         service digest_type => (
-            block        => sub { $_[0]->param('config')->get(key => 'repository.digest_type') or die },
+            block        => sub { $_[0]->param('config')->get(key => 'repository.digest_type') },
+            dependencies => { config => depends_on('Config') },
+        );
+        service attach_method => (
+            block => sub { 
+                $_[0]->param('config')->get(key => 'repository.attach_method') || 'symlink'
+            },
             dependencies => { config => depends_on('Config') },
         );
         service Repository => (
             class        => 'Gat::Repository',
-            dependencies => wire_names(qw[ asset_dir digest_type ]),
+            dependencies => wire_names(qw[ asset_dir digest_type attach_method ]),
         );
 
         service 'App' => (
