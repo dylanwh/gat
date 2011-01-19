@@ -12,14 +12,17 @@ has 'force' => (
 
 sub execute {
     my ( $self, $opt, $files ) = @_;
-    my $c = Gat::Container->new(
+    my $gat = Gat->new(
         work_dir => $self->work_dir->absolute,
     );
 
-    my $gat = $c->fetch('App')->get;
     $gat->check_workspace;
 
-    my $stream = Gat::FileStream->new(files => $files);
+    my $stream = $gat->resolve(
+        type       => 'Gat::FileStream',
+        parameters => { files => $files },
+    );
+
     $gat->remove( files => $stream, verbose => $self->verbose, force => $self->force );
 }
 

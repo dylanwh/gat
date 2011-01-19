@@ -13,13 +13,12 @@ has 'force' => (
 
 sub execute {
     my ( $self, $opt, $files ) = @_;
-    my $c = Gat::Container->new(
+    my $gat = Gat->new(
         work_dir => $self->work_dir->absolute,
     );
 
-    my $gat   = $c->fetch('App')->get;
-    my $path  = $c->fetch('Path')->get;
-    my $model = $c->fetch('Model')->get;
+    my $path  = $gat->resolve(type => 'Gat::Path');
+    my $model = $gat->resolve(type => 'Gat::Model');
     my $scope = $model->new_scope;
     $gat->check_workspace;
 

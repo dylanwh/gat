@@ -17,13 +17,10 @@ has 'file' => (
 
 sub execute {
     my ( $self, $opt, $files ) = @_;
-    my $c = Gat::Container->new(
+    my $gat = Gat->new(
         work_dir => $self->work_dir->absolute,
     );
-
-    my $gat = $c->fetch('App')->get;
     $gat->check_workspace;
-
     $gat->export_model( $self->has_file ? (file => $self->file) : () );
 }
 

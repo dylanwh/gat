@@ -12,13 +12,10 @@ has 'null' => (
 
 sub execute {
     my ( $self ) = @_;
-    my $c = Gat::Container->new(
+    my $gat = Gat->new(
         work_dir => $self->work_dir->absolute,
     );
-
-    my $gat = $c->fetch('App')->get;
     $gat->check_workspace;
-
     $gat->print_files(null => $self->null, filter => sub { -f $_ });
 }
 

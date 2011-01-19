@@ -6,11 +6,23 @@ use Carp;
 use File::Basename;
 
 use Path::Class;
-use Gat::Types 'AbsoluteFile';
+use Gat::Types 'AbsoluteDir';
 
 extends 'Config::GitLike';
 
-has '+confname' => ( default => 'config' );
+has 'confname' => ( is => 'ro', isa => 'Str', default => 'config' );
+
+has 'base_dir' => (
+    is       => 'ro',
+    isa      => AbsoluteDir,
+    required => 1,
+);
+
+sub BUILD {
+    my $self = shift;
+
+    $self->load($self->base_dir);
+}
 
 sub dir_file {
     my ($self) = @_;

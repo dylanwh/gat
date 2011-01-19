@@ -3,7 +3,7 @@ use Moose;
 use feature 'switch';
 use namespace::autoclean;
 
-use Gat::Types 'RelativeFile';
+use Gat::Types 'RelativeFile', 'AbsoluteDir';
 
 use MooseX::Types::Moose ':all';
 use MooseX::Types::Path::Class 'File';
@@ -20,6 +20,17 @@ has 'predicates' => (
     handles => { 'predicates' => 'elements', 'add_predicate' => 'push' },
     default => sub { [] },
 );
+
+has 'base_dir' => (
+    is       => 'ro',
+    isa      => AbsoluteDir,
+    required => 1,
+);
+
+sub BUILD {
+    my $self = shift;
+    $self->load($self->base_dir);
+}
 
 sub is_allowed {
     my $self   = shift;

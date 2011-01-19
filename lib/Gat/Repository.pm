@@ -26,24 +26,61 @@ use MooseX::Params::Validate;
 use Gat::Types ':all';
 use Gat::Error;
 
-has 'asset_dir' => (
+has 'config' => (
     is       => 'ro',
-    isa      => Dir,
-    coerce   => 1,
+    isa      => 'Gat::Config',
     required => 1,
 );
 
-has 'digest_type' => (
+has 'path' => (
+    is       => 'ro',
+    isa      => 'Gat::Path',
+    required => 1,
+);
+
+has 'asset_dir' => (
     is      => 'ro',
-    isa     => Str,
-    default => 'MD5',
+    isa     => AbsoluteDir,
+    init_arg => undef,
+    coerce  => 1,
+    lazy    => 1,
+    builder => '_build_asset_dir',
+);
+
+has 'digest_type' => (
+    is       => 'ro',
+    isa      => Str,
+    init_arg => undef,
+    lazy     => 1,
+    builder  => '_build_digest_type',
 );
 
 has 'attach_method' => (
-    is      => 'ro',
-    isa     => enum([ 'link', 'symlink', 'copy' ]),
-    default => 'symlink',
+    is       => 'ro',
+    isa      => enum( [ 'link', 'symlink', 'copy' ] ),
+    init_arg => undef,
+    lazy     => 1,
+    builder  => '_build_attach_method',
 );
+
+sub _build_asset_dir {
+    my $self = shift;
+
+    $self->path->absolute(
+        $self->config->get(key => 'repository.asset_dir') || '.gat/asset',
+        $self->path->base_dir,
+    );
+}
+
+sub _build_digest_type {
+    my $self = shift;
+    $self->config->get(key => 'repository.digest_type') || 'MD5';
+}
+
+sub _build_attach_method {
+    my $self = shift;
+    $self->config->get(key => 'repository.attach_method') || 'symlink';
+}
 
 sub BUILD {
     my ($self) = @_;

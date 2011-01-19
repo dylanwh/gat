@@ -2,6 +2,7 @@ package Gat::Cmd;
 use Moose;
 use namespace::autoclean;
 
+use Gat;
 extends qw(MooseX::App::Cmd);
 
 

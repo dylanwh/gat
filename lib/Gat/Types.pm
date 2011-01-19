@@ -56,8 +56,12 @@ coerce AbsoluteDir, from Str, via { dir($_) };
 coerce RelativeDir, from Str, via { dir($_) };
 coerce AbsoluteFile, from Str,  via { file($_) };
 coerce RelativeFile, from Str, via { file($_) };
-
 coerce AbsolutePath, from Str, via { file($_) };
 coerce RelativePath, from Str, via { file($_) };
+
+coerce AbsoluteDir, from AbsoluteFile, via { dir($_) };
+coerce RelativeDir, from RelativeFile, via { dir($_) };
+coerce AbsoluteFile, from AbsoluteDir,  via { file($_) };
+coerce RelativeFile, from RelativeDir, via { file($_) };
 
 1;

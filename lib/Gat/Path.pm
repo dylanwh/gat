@@ -2,7 +2,7 @@ package Gat::Path;
 use Moose;
 use namespace::autoclean;
 
-use MooseX::Types::Path::Class 'File';
+use MooseX::Types::Path::Class 'File', 'Dir';
 use MooseX::Params::Validate;
 use Gat::Types ':all';
 
@@ -10,6 +10,7 @@ has 'rules' => (
     is       => 'ro',
     isa      => 'Gat::Rules',
     handles  => { '_is_allowed' => 'is_allowed' },
+    required => 1,
 );
 
 has 'work_dir' => (
@@ -33,22 +34,7 @@ has 'gat_dir' => (
     lazy_build => 1,
 );
 
-has 'filter' => (
-    is         => 'ro',
-    isa        => 'CodeRef',
-    lazy_build => 1,
-);
-
 sub _build_gat_dir { $_[0]->base_dir->subdir('.gat') }
-
-sub _build_filter {
-    my $self = shift;
-    return sub { 
-        [ 
-            grep { $self->is_valid($_) && $self->_is_allowed( $self->canonical( $_ ) ) } @$_
-        ]
-    };
-}
 
 sub cleanup {
     my $self = shift;
@@ -76,9 +62,13 @@ sub relative {
 
 sub absolute {
     my $self   = shift;
-    my ($file) = pos_validated_list(\@_, { isa => File, coerce => 1 });
+    my ($file, $base) = pos_validated_list(
+        \@_, 
+        { isa => File, coerce => 1 },
+        { isa => Dir,  coerce => 1, default => $self->work_dir },
+    );
 
-    return $self->cleanup( $file->absolute( $self->work_dir ) );
+    return $self->cleanup( $file->absolute( $base ) );
 }
 
 sub canonical {

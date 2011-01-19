@@ -13,13 +13,11 @@ has 'force' => (
 
 sub execute {
     my ( $self ) = @_;
-    my $c = Gat::Container->new(
+    my $gat = Gat->new(
         work_dir => $self->work_dir->absolute,
     );
 
-    my $gat = $c->fetch('App')->get;
     $gat->check_workspace;
-
     $gat->unhide( verbose => $self->verbose, force => $self->force );
 }
 

@@ -6,12 +6,13 @@ use Test::Exception;
 use Test::TempDir;
 
 my $root = temp_root->absolute;
-my $asset_dir = $root->subdir('asset');
-$asset_dir->mkpath;
 
-use Gat::Repository;
+use Gat;
 
-my $repo = Gat::Repository->new( asset_dir => $asset_dir );
+my $gat = Gat->new(base_dir => $root, work_dir => $root);
+$gat->init;
+
+my $repo = $gat->resolve(type => 'Gat::Repository');
 
 $root->file('pants.txt')->openw->print('hello, world');
 
@@ -23,16 +24,7 @@ ok(!-f $root->file('pants.txt') );
 $repo->attach( file => $root->file('pants.txt'), checksum => $checksum );
 ok(-f $root->file('pants.txt') );
 
-lives_ok {
-    $repo->fetch(checksum => $checksum, file => $root->file("copy-of-pants.txt"));
-};
-
 $repo->remove(checksum => $checksum);
 ok(!-f $repo->_asset_file($checksum));
-
-dies_ok {
-    $repo->fetch(checksum => $checksum, file => $root->file("copy-of-pants.txt"));
-};
-
 
 done_testing;

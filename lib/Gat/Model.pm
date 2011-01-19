@@ -26,6 +26,14 @@ sub lookup_asset {
     return $self->lookup("asset:$checksum");
 }
 
+sub find_checksum {
+    my ($self, $file) = @_;
+    my $label = $self->lookup_label($file);
+
+    Gat::Error->throw( message => "$file is unknown to gat" ) unless $label;
+    return $label->checksum;
+}
+
 sub add_label {
     my $self = shift;
     my ($file, $checksum, $size) = pos_validated_list(

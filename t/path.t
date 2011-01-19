@@ -18,6 +18,7 @@ my $path = Gat::Path->new(
 is($path->relative('foo'), 'foo');
 is($path->absolute('foo'), "$cwd/src/foo");
 is($path->canonical('foo'), "src/foo");
+is($path->absolute('foo', $path->base_dir), "$cwd/foo");
 ok($path->is_valid('foo'), "is valid");
 ok(!$path->is_valid('../../foo'), "is not allowed");
 

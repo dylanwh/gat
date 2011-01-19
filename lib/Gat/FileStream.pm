@@ -12,14 +12,13 @@ has '_files' => (
     is       => 'ro',
     isa      => 'ArrayRef[Str]',
     init_arg => 'files',
-    required => 1,
     handles  => { files => 'elements' },
 );
 
-has 'filter' => (
-    is        => 'ro',
-    isa       => 'CodeRef',
-    predicate => 'has_filter',
+has 'path' => (
+    is       => 'ro',
+    isa      => 'Gat::Path',
+    required => 1,
 );
 
 has 'file_stream' => (
@@ -53,16 +52,16 @@ sub _build_file_stream {
             @streams,
         ],
     );
+    my $path = $self->path;
 
-    if ($self->has_filter) {
-        return Data::Stream::Bulk::Filter->new(
-            filter => $self->filter,
-            stream => $stream,
-        );
-    }
-    else {
-        return $stream;
-    }
+    return Data::Stream::Bulk::Filter->new(
+        filter => sub {
+            return [ 
+                grep { $path->is_valid($_) && $path->is_allowed($_) } @$_
+            ]
+        },
+        stream => $stream,
+    );
 }
 
 __PACKAGE__->meta->make_immutable;
