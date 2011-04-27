@@ -1,4 +1,4 @@
-package Gat::Schema::Asset;
+package Gat::Asset;
 use Moose;
 use namespace::autoclean;
 
@@ -59,8 +59,6 @@ sub remove_label {
     $label->asset(undef);
     $self->_labels->remove($label);
 }
-
-
 
 __PACKAGE__->meta->make_immutable;
 

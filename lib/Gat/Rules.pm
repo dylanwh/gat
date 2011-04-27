@@ -3,7 +3,7 @@ use Moose;
 use feature 'switch';
 use namespace::autoclean;
 
-use Gat::Types 'RelativeFile', 'AbsoluteDir';
+use Gat::Types 'RelativeFile';
 
 use MooseX::Types::Moose ':all';
 use MooseX::Types::Path::Class 'File';
@@ -17,20 +17,13 @@ has 'predicates' => (
     traits  => ['Array'],
     isa     => ArrayRef [ Tuple [ RegexpRef | CodeRef, Bool ] ],
     reader  => '_predicates',
-    handles => { 'predicates' => 'elements', 'add_predicate' => 'push' },
+    handles => {
+        'predicates'     => 'elements',
+        'add_predicate'  => 'push',
+        'has_predicates' => 'count',
+    },
     default => sub { [] },
 );
-
-has 'base_dir' => (
-    is       => 'ro',
-    isa      => AbsoluteDir,
-    required => 1,
-);
-
-sub BUILD {
-    my $self = shift;
-    $self->load($self->base_dir);
-}
 
 sub is_allowed {
     my $self   = shift;
@@ -38,12 +31,6 @@ sub is_allowed {
 
     my $pred   = first_value { $file ~~ $_->[0] } $self->predicates;
     return $pred ? $pred->[1] : 1;
-}
-
-sub load {
-    my ($self, $base_dir) = @_;
-    my $file = $base_dir->file('.gat', 'rules');
-    $self->load_file($file) if -f $file;
 }
 
 sub load_file {
@@ -60,7 +47,7 @@ sub load_file {
 
         given ($line) {
             when (/^\s*\{(.+?)\}/) {
-                my $code = "sub { local \$_ = shift; $1 }";
+                my $code = "sub { local \$_ = \$_[0]; $1 }";
                 my $func = eval_closure(
                     source      => $code, 
                     description => "$file, line " .  $fh->input_line_number,
