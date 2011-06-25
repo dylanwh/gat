@@ -8,10 +8,10 @@ use namespace::autoclean;
 use MooseX::Types::Moose ':all';
 use MooseX::Params::Validate;
 
-use Gat::Schema::Asset;
-use Gat::Schema::Label;
+use Gat::Asset;
+use Gat::Label;
 
-use Gat::Types 'Checksum', 'RelativeFile';
+use Gat::Types ':all';
 use Gat::Error;
 
 extends 'KiokuX::Model';
@@ -26,13 +26,20 @@ sub lookup_asset {
     return $self->lookup("asset:$checksum");
 }
 
-sub find_checksum {
-    my ($self, $file) = @_;
-    my $label = $self->lookup_label($file);
 
-    Gat::Error->throw( message => "$file is unknown to gat" ) unless $label;
-    return $label->checksum;
+# bind(Label $label, Asset $asset)
+sub bind {
+    my $self = shift;
+    my ($label, $asset) = pos_validated_list(
+        \@_,
+        { isa => Label },
+        { isa => Asset },
+    );
+
+
+
 }
+
 
 sub add_label {
     my $self = shift;
@@ -49,12 +56,12 @@ sub add_label {
         $label_asset->remove_label( $label );
         $self->deep_update($label_asset);
     } else {
-        $label = Gat::Schema::Label->new( filename => $file, asset => undef );
+        $label = Gat::Label->new( filename => $file, asset => undef );
     }
 
     my $asset = $self->lookup_asset($checksum);
     if (not $asset) {
-        $asset = Gat::Schema::Asset->new(
+        $asset = Gat::Asset->new(
             checksum => $checksum,
             size     => $size,
         );
@@ -92,7 +99,7 @@ sub files {
         filter => sub {
             return [
                 map { $_->filename }
-                grep { $_->isa('Gat::Schema::Label') }
+                grep { $_->isa('Gat::Label') }
                 @$_
             ]
         },
@@ -107,7 +114,7 @@ sub manifest {
         filter => sub {
             my @res;
             for my $item (@$_) {
-                if ($item->isa('Gat::Schema::Asset')) {
+                if ($item->isa('Gat::Asset')) {
                     push @res, map { [ $item->checksum, $_ ] } $item->files;
                 }
             }

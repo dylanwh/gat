@@ -6,24 +6,16 @@ use Test::Exception;
 use Path::Class;
 use Cwd;
 
-use ok 'Gat::Path';
-use ok 'Gat::Label';
-use ok 'Gat::Context';
-use ok 'Gat::Rules';
+use ok 'Gat::Container';
 
-my $ctx = Gat::Context->new(
-    work_dir => cwd . '/fake/workdir',
-    base_dir => cwd . '/fake',
-);
-ok($ctx, "got context");
+my $c = Gat::Container->new(base_dir => '/tmp');
 
-my $lfoo = $ctx->label(cwd . '/fake/workdir/foo');
-my $pfoo = $ctx->path('foo');
+my $path = $c->resolve(type => 'Gat::Path', parameters => { filename => '/tmp/foo' });
 
-diag $lfoo->filename;
-diag $pfoo->filename;
+$path->touch;
+is($path->checksum, "d41d8cd98f00b204e9800998ecf8427e");
 
-is($pfoo->to_label($ctx)->filename, $lfoo->filename);
-is($lfoo->to_path($ctx)->filename, $pfoo->filename);
+my $sieve = $c->resolve(type => 'Gat::Path::Sieve', parameters => { rules => [[qr/./, 1]] });
+my $stream = $c->resolve(type => 'Gat::Path::Stream', parameters => { paths => [] } );
 
 done_testing;

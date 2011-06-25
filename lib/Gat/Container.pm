@@ -3,30 +3,22 @@ use Moose;
 use namespace::autoclean;
 
 use Cwd;
+use Carp;
 
 use Bread::Board;
-use Carp;
-use MooseX::Types::Path::Class 'Dir';
+use Gat::Constants 'GAT_DIR';
+use Gat::Types 'AbsoluteDir';
 
 use Gat::Path;
-use Gat::Config;
+use Gat::Path::Sieve;
+use Gat::Path::Sieve::Util 'load_rules';
+use Gat::Path::Stream;
+
 use Gat::Repository;
-use Gat::Model;
-use Gat::FileStream;
-use Gat::Rules;
-use Gat::Types 'AbsoluteDir';
-use Gat::Util ':all';
 
 extends 'Bread::Board::Container';
 
 has '+name' => ( default => 'Gat' );
-
-has 'work_dir' => (
-    is       => 'ro',
-    isa      => AbsoluteDir,
-    coerce   => 1,
-    required => 1,
-);
 
 has 'base_dir' => (
     is       => 'ro',
@@ -39,45 +31,43 @@ sub BUILD {
     my ($self)   = @_;
 
     container $self => as {
+        service 'base_dir' => $self->base_dir;
 
-        service work_dir  => $self->work_dir;
-        service base_dir  => $self->base_dir;
-        service asset_dir => $self->base_dir->subdir('.gat/asset');
-        service model_dsn  => 'bdb';
-        service model_args => {
-            manager => {
-                create => 1,
-                home   => $self->base_dir->subdir('.gat/model'),
+        service 'gat_dir' => (
+            block        => sub { $_[0]->param('base_dir')->subdir(GAT_DIR) },
+            dependencies => wire_names('base_dir'),
+        );
+
+        service 'asset_dir' => (
+            block        => sub { $_[0]->param('gat_dir')->subdir('asset') },
+            dependencies => wire_names('gat_dir'),
+        );
+
+        service 'rules_file' => (
+            block        => sub { $_[0]->param('gat_dir')->file('rules') },
+            dependencies => wire_names('gat_dir'),
+        );
+
+        service 'rules' => (
+            block => sub {
+                my $s = shift;
+                return -f $s->param('rules_file')
+                    ? load_rules( $s->param('rules_file') )
+                    : [];
             },
-        };
-
-        typemap 'Gat::Config' => infer(
-            dependencies => wire_names(qw[ base_dir ]),
+            dependencies => wire_names('rules_file'),
         );
 
-        typemap 'Gat::Rules' => infer(
-            dependencies => wire_names(qw[ base_dir ]),
-        );
+        service 'attach_method' => 'symlink';
 
-        typemap 'Gat::Path' => infer(
-            dependencies => {
-                base_dir => depends_on('base_dir'),
-                work_dir => depends_on('work_dir'),
-            },
+        typemap 'Gat::Path::Sieve' => infer(
+            dependencies => wire_names( qw[ base_dir gat_dir asset_dir rules ] ),
+            parameters   => { rules => { optional => 1 } },
         );
-
-        typemap 'Gat::Model' => infer(
-            dependencies => {
-                dsn        => depends_on('model_dsn'),
-                extra_args => depends_on('model_args'),
-            },
+        typemap 'Gat::Path::Stream' => infer;
+        typemap 'Gat::Repository' => infer(
+            dependencies => wire_names(qw[ asset_dir attach_method ])
         );
-
-        typemap 'Gat::FileStream' => infer(
-            parameters => { files  => { optional => 0 } },
-        );
-
-        typemap 'Gat::Repository' => infer();
     };
 }
 

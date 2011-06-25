@@ -7,9 +7,16 @@ with 'KiokuDB::Role::ID';
 use MooseX::Params::Validate;
 use MooseX::Types::Path::Class 'File';
 use MooseX::Types::Moose ':all';
-use Gat::Types 'Asset', 'RelativeFile';
+use MooseX::StrictConstructor;
 
-with 'Gat::Role::HasFilename' => { filename_isa => RelativeFile };
+use Gat::Types 'Asset', 'RelativeFile', 'AbsoluteDir';
+
+has 'name' => (
+    is       => 'ro',
+    isa      => RelativeFile,
+    required => 1,
+    initializer => '_init_name',
+);
 
 has 'asset' => (
     is       => 'rw',
@@ -19,18 +26,37 @@ has 'asset' => (
     handles => ['checksum'],
 );
 
+has 'filename' => (
+    traits     => ['KiokuDB::DoNotSerialize'],
+    is         => 'ro',
+    isa        => File,
+    init_arg   => undef,
+    lazy_build => 1,
+);
+
 sub to_path {
     my $self = shift;
-    my ($ctx) = pos_validated_list( \@_, { isa => 'Gat::Context' } );
+    my ($ctx) = pos_validated_list(\@_, { isa => PathContext });
 
-    return Gat::Path->new($self->filename->absolute( $ctx->base_dir ));
+    return Gat::Path->new( filename => $self->name->absolute( $ctx->work_dir ), context => $ctx );
 }
 
-sub is_allowed {
+sub has_asset {
     my $self = shift;
-    my ($ctx) = pos_validated_list( \@_, { isa => 'Gat::Context' } );
+    defined $self->asset;
+}
 
-    return $ctx->is_allowed( $self->filename );
+sub _init_name {
+    my ( $self, $name, $set, $attr ) = @_;
+    $set->($name->as_foreign('Unix'));
+}
+
+sub _build_filename {
+    my ($self) = @_;
+
+    Path::Class::File->new(
+        File::Spec::Unix->splitdir($self->name)
+    );
 }
 
 sub kiokudb_object_id {

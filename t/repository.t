@@ -2,29 +2,15 @@
 use strict;
 use warnings;
 use Test::More;
-use Test::Exception;
 use Test::TempDir;
 
-my $root = temp_root->absolute;
+use ok 'Gat::Container';
 
-use Gat;
+my $c = Gat::Container->new(base_dir => temp_root()->absolute);
 
-my $gat = Gat->new(base_dir => $root, work_dir => $root);
-$gat->init;
+my $repo = $c->resolve(type => 'Gat::Repository');
+my $path = $c->resolve(type => 'Gat::Path', parameters => { filename => '/tmp/foo' });
 
-my $repo = $gat->resolve(type => 'Gat::Repository');
 
-$root->file('pants.txt')->openw->print('hello, world');
-
-my $checksum = $repo->store( file => $root->file('pants.txt') );
-$repo->attach(file => $root->file('pants.txt'), checksum => $checksum);
-ok(-f $root->file('pants.txt') );
-unlink $root->file('pants.txt');
-ok(!-f $root->file('pants.txt') );
-$repo->attach( file => $root->file('pants.txt'), checksum => $checksum );
-ok(-f $root->file('pants.txt') );
-
-$repo->remove(checksum => $checksum);
-ok(!-f $repo->_asset_file($checksum));
 
 done_testing;

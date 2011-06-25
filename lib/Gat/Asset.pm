@@ -1,4 +1,4 @@
-package Gat::Asset;
+package Gat::Model::Asset;
 use Moose;
 use namespace::autoclean;
 
@@ -17,11 +17,17 @@ has '_labels' => (
     init_arg => undef,
     default  => sub { set() },
     handles  => {
-        has_label    => 'contains',
+        has_label => 'contains',
     },
 );
 
 has 'size' => (
+    is       => 'rw',
+    isa      => Int,
+    required => 1,
+);
+
+has 'mtime' => (
     is       => 'rw',
     isa      => Int,
     required => 1,
@@ -32,12 +38,6 @@ has 'checksum' => (
     isa      => Checksum,
     required => 1,
 );
-
-sub files {
-    my ($self) = @_;
-    my @files = map { $_->filename } $self->_labels->members;
-    return wantarray ? @files : \@files;
-}
 
 sub kiokudb_object_id {
     my ($self) = @_;
@@ -56,8 +56,10 @@ sub remove_label {
     my $self = shift;
     my ($label) = pos_validated_list(\@_, { isa => Label });
 
-    $label->asset(undef);
-    $self->_labels->remove($label);
+    if ($self->has_label($label)) {
+        $label->asset(undef) if $label->asset == $self;
+        $self->_labels->remove($label);
+    }
 }
 
 __PACKAGE__->meta->make_immutable;

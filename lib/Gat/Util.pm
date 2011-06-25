@@ -1,36 +1,28 @@
 package Gat::Util;
-use strictures 1;
-use Path::Class;
-use Data::Stream::Bulk::Path::Class;
-use Data::Stream::Bulk::Cat;
-use Data::Stream::Bulk::Array;
+use strict;
+use warnings;
+use feature 'switch';
 
 use Sub::Exporter -setup => {
-    exports => [qw[ file_stream ]],
+    exports => [qw[ find_base_dir ]],
 };
 
-sub file_stream {
-    my @paths = @_;
-    my (@streams, @files);
+use Path::Class 'dir';
+use Gat::Constants 'GAT_DIR';
+use Gat::Types 'AbsoluteDir';
+use MooseX::Params::Validate;
 
-    foreach my $path (@paths) {
-        if (-d $path) {
-            push @streams, Data::Stream::Bulk::Path::Class->new(
-                dir => dir($path),
-                only_files => 1,
-            );
-        }
-        else {
-            push @files, file($path);
-        }
+sub find_base_dir {
+    my ($work_dir) = pos_validated_list(\@_, { isa => AbsoluteDir, coerce => 1 });
+    my $root_dir   = dir('');
+    my $base_dir   = $work_dir
+
+    until (-d $base_dir->subdir(GAT_DIR)) {
+        $base_dir = $base_dir->parent;
+        return $work_dir if $base_dir eq $root_dir;
     }
 
-    return Data::Stream::Bulk::Cat->new(
-        streams => [ 
-            Data::Stream::Bulk::Array->new( array => \@files ),
-            @streams,
-        ],
-    );
+    return $base_dir;
 }
 
 

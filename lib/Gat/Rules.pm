@@ -3,14 +3,14 @@ use Moose;
 use feature 'switch';
 use namespace::autoclean;
 
-use Gat::Types 'RelativeFile';
+use MooseX::Params::Validate;
 
 use MooseX::Types::Moose ':all';
-use MooseX::Types::Path::Class 'File';
 use MooseX::Types::Structured 'Tuple';
+use MooseX::Types::Path::Class 'File';
+use Gat::Types ':all';
 
 use List::MoreUtils 'first_value';
-use MooseX::Params::Validate;
 use Eval::Closure 'eval_closure';
 
 has 'predicates' => (
@@ -25,11 +25,12 @@ has 'predicates' => (
     default => sub { [] },
 );
 
+# operates on a label
 sub is_allowed {
-    my $self   = shift;
-    my ($file) = pos_validated_list(\@_, { isa => RelativeFile, coerce => 1 });
-
-    my $pred   = first_value { $file ~~ $_->[0] } $self->predicates;
+    my $self    = shift;
+    my ($label) = pos_validated_list( \@_, { isa => Label } );
+    my $file    = $label->filename;
+    my $pred    = first_value { $file ~~ $_->[0] } $self->predicates;
     return $pred ? $pred->[1] : 1;
 }
 
@@ -47,10 +48,10 @@ sub load_file {
 
         given ($line) {
             when (/^\s*\{(.+?)\}/) {
-                my $code = "sub { local \$_ = \$_[0]; $1 }";
+                my $line = $fh->input_line_number;
+                my $code = qq(#line $line "$file"\nsub { local \$_ = \$_[0]; $1 );
                 my $func = eval_closure(
                     source      => $code, 
-                    description => "$file, line " .  $fh->input_line_number,
                 );
                 $self->add_predicate( [$func, $val] );
             }
@@ -59,7 +60,6 @@ sub load_file {
             }
             when (/^(.+)/) {
                 my $bang = $val ? '' : '!';
-                warn "deprecated rule: $line, use $bang/$line/";
                 $self->add_predicate( [qr/$1/, $val] );
             }
         }
