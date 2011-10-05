@@ -2,20 +2,18 @@
 use strict;
 use warnings;
 use Test::More;
-use Test::Exception;
+use Test::TempDir;
 use Path::Class;
 use Cwd;
 
-use ok 'Gat::Container';
+use ok 'Gat::Path';
 
-my $c = Gat::Container->new(base_dir => '/tmp');
+my $root = temp_root()->absolute;
 
-my $path = $c->resolve(type => 'Gat::Path', parameters => { filename => '/tmp/foo' });
+my $foo = Gat::Path->new( $root->file('pants') );
 
-$path->touch;
-is($path->checksum, "d41d8cd98f00b204e9800998ecf8427e");
+$foo->touch;
+is($foo->digest, 'd41d8cd98f00b204e9800998ecf8427e');
 
-my $sieve = $c->resolve(type => 'Gat::Path::Sieve', parameters => { rules => [[qr/./, 1]] });
-my $stream = $c->resolve(type => 'Gat::Path::Stream', parameters => { paths => [] } );
 
 done_testing;

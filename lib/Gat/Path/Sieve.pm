@@ -61,7 +61,8 @@ sub _is_valid {
 sub _is_file {
     my ($self, $path) = @_;
 
-    return $path->is_file if $path->exists;
+    my $stat = $path->stat;
+    return $stat->is_file if $stat->exists;
     return 1;
 }
 

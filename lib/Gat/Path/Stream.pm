@@ -10,18 +10,12 @@ use Data::Stream::Bulk::Array;
 use Gat::Types 'Path';
 use MooseX::Types::Moose 'ArrayRef';
 
-has 'paths' => (
+has 'roots' => (
     traits   => ['Array'],
-    reader   => '_paths',
-    isa      => ArrayRef[Path],
-    handles  => { _all_paths => 'elements' },
-    required => 1,
-);
-
-has 'sieve' => (
-    reader   => '_sieve',
-    isa      => 'Gat::Path::Sieve',
-    required => 1,
+    isa        => ArrayRef[Path],
+    reader     => '_roots',
+    handles    => { _all_roots => 'elements' },
+    lazy_build => 1,
 );
 
 has '_stream' => (
@@ -38,12 +32,11 @@ sub _build__stream {
     my ($self) = @_;
     my (@streams, @paths);
 
-    my $sieve = $self->_sieve;
-
-    foreach my $path ($self->_all_paths) {
+    foreach my $path ($self->_all_roots) {
         next unless $path->exists;
 
-        if ($path->is_dir) {
+        my $stat = $path->stat;
+        if ($stat->is_dir) {
             push @streams, Data::Stream::Bulk::Filter->new(
                 filter => sub { [ map { Gat::Path->new(filename => $_) } @$_ ] },
                 stream => Data::Stream::Bulk::Path::Class->new(
@@ -52,21 +45,15 @@ sub _build__stream {
                 )
             );
         }
-        elsif ($path->is_file) {
+        elsif ($stat->is_file) {
             push @paths, $path;
         }
     }
 
-    return Data::Stream::Bulk::Filter->new(
-        filter => sub {
-            return [ grep { $sieve->match($_) } @$_ ];
-        },
-        stream => Data::Stream::Bulk::Cat->new(
-            streams => [ Data::Stream::Bulk::Array->new( array => \@paths ), @streams, ],
-        )
+    return Data::Stream::Bulk::Cat->new(
+        streams => [ Data::Stream::Bulk::Array->new( array => \@paths ), @streams ]
     );
 }
 
 __PACKAGE__->meta->make_immutable;
 1;
-

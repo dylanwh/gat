@@ -1,15 +1,19 @@
 package Gat::Types;
 use MooseX::Types -declare => [
     qw[ 
-        Label
-        Asset
-        Checksum
         Path
+        PathStream
+        FileStat
+
         Remote
+
         RelativeFile
         AbsoluteFile
         AbsoluteDir
+
+        Checksum
         AttachMethod
+        StoreMethod
     ]
 ];
 
@@ -17,10 +21,11 @@ use MooseX::Types::Moose ':all';
 use MooseX::Types::Path::Class 'File', 'Dir';
 use Path::Class;
 
-class_type Label,  { class => 'Gat::Label' };
-class_type Asset,  { class => 'Gat::Asset' };
-class_type Path,   { class => 'Gat::Path'  };
-role_type  Remote, { class => 'Gat::Remote' };
+
+class_type Path,         { class => 'Gat::Path'         };
+class_type PathStream,   { class => 'Gat::Path::Stream' };
+class_type FileStat,     { class => 'File::stat'        };
+role_type  Remote,       { class => 'Gat::Remote' };
 
 subtype Checksum, as Str, where { /^[0-9A-Fa-f]{3,}$/ };
 
@@ -34,5 +39,6 @@ subtype AbsoluteDir, as Dir, where { $_->is_absolute };
 coerce AbsoluteDir, from Str, via { dir($_) };
 
 enum AttachMethod, qw[ link symlink copy ];
+enum StoreMethod, qw[ link move copy ];
 
 1;

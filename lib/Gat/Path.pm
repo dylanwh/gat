@@ -1,115 +1,78 @@
 package Gat::Path;
 use Moose;
-use namespace::autoclean;
+#use namespace::autoclean; damn overload
 
 use MooseX::Params::Validate;
 use MooseX::Types::Moose ':all';
 use MooseX::Types::Path::Class 'File', 'Dir';
 
-use Gat::Types ':all';
-use Gat::Constants 'GAT_HASH';
-
+use Carp;
 use Digest;
 use Fcntl ':mode';
-use File::Spec;
-use File::stat;
-use File::chmod ();
 use File::Copy::Reliable 'move_reliable', 'copy_reliable';
-use Path::Class;
+use File::chmod ();
+use Path::Class 'file';
+
+use Gat::Types ':all';
+use Gat::Util 'cleanup_filename';
+
+use namespace::clean;
+
+use overload (
+    q{""}    => 'stringify',
+    fallback => 1,
+);
+
+with 'MooseX::OneArgNew' => { type => AbsoluteFile | Str, init_arg => 'filename' },
+     'MooseX::Clone';
 
 has 'filename' => (
-    is          => 'ro',
-    isa         => AbsoluteFile,
-    coerce      => 1,
-    required    => 1,
+    is       => 'ro',
+    isa      => AbsoluteFile,
+    coerce   => 1,
+    required => 1,
     initializer => '_init_filename',
-    handles     => [qw[ openr touch stringify ]],
+    handles  => [qw[ slurp touch stringify ]],
 );
 
-has 'fileinfo' => (
-    is         => 'rw',
-    isa        => 'Maybe[File::stat]',
-    lazy_build => 1,
-    handles    => {
-        mode   => 'mode',
-        size   => 'size',
-        mtime  => 'mtime',
-        device => 'dev',
-        inode  => 'ino',
-    },
-    predicate => 'has_fileinfo',
-);
+#has 'stat' => (
+#    traits  => ['NoClone'],
+#    is      => 'ro',
+#    isa     => Maybe[FileStat],
+#    builder => '_build_stat',
+#    lazy    => 1,
+#);
 
-has 'checksum' => (
-    is         => 'rw',
-    isa        => Maybe[Checksum],
-    lazy_build => 1,
-    predicate => 'has_checksum',
-);
+sub stat   { return scalar $_[0]->filename->lstat; }
+sub exists { return -e $_[0]->filename }
 
-sub exists {
+sub digest {
     my $self = shift;
+    my ($digest_type) = pos_validated_list(\@_, { isa => Str });
 
-    return defined $self->fileinfo;
+    my $digest = Digest->new($digest_type);
+    my $fh     = $self->filename->openr;
+    $digest->addfile($fh);
+
+    return $digest->hexdigest;
 }
-
-sub is_link {
-    my $self = shift;
-
-    return S_ISLNK($self->mode);
-}
-
-sub is_file {
-    my $self = shift;
-
-    return S_ISREG($self->mode);
-}
-
-sub is_dir {
-    my $self = shift;
-
-    return S_ISDIR($self->mode);
-}
-
-after 'copy', 'link' => sub {
-    my ($self, $dest) = @_;
-
-    $dest->fileinfo( $self->fileinfo ) if $self->has_fileinfo;
-    $dest->checksum( $self->checksum ) if $self->has_checksum;
-};
-
-after 'move' => sub {
-    my ($self, $dest) = @_;
-
-    $dest->fileinfo( $self->fileinfo ) if $self->has_fileinfo;
-    $dest->checksum( $self->checksum ) if $self->has_checksum;
-
-    $self->clear_cache;
-};
-
-after 'unlink', 'chmod', 'touch' => sub {
-    my ($self) = @_;
-    
-    $self->clear_cache;
-};
 
 before 'touch' => sub {
     my ($self) = @_;
-    $self->filename->parent->mkpath;
+
+    $self->mkpath;
 };
 
 before 'copy', 'link', 'move', 'symlink' => sub {
-    my ($self, $other) = @_;
-    if ($self->exists) {
-        $other->filename->parent->mkpath;
-    }
+    my ( $self, $dest ) = @_;
+
+    $dest->mkpath if $self->stat;
 };
 
-sub clear_cache {
+sub mkpath {
     my $self = shift;
 
-    $self->clear_checksum;
-    $self->clear_fileinfo;
+    $self->filename->parent->mkpath(@_);
 }
 
 sub move {
@@ -131,7 +94,7 @@ sub symlink {
     my ($dest) = pos_validated_list(\@_, { isa => Path });
 
     CORE::symlink($self->filename->relative( $dest->filename->parent ), $dest->filename)
-        or die "$!";
+        or confess "$!: ". $dest->filename;
 }
 
 sub link {
@@ -139,34 +102,22 @@ sub link {
     my ($dest) = pos_validated_list(\@_, { isa => Path });
 
     CORE::link($self->filename, $dest->filename)
-        or die "$!";
+        or confess "$!";
 }
 
 sub unlink {
     my $self = shift;
 
     CORE::unlink($self->filename)
-        or die "$!";
+        or confess "$!";
 }
 
 sub readlink {
     my $self = shift;
 
-    if ($self->exists && $self->is_link) {
-        return file(CORE::readlink($self->filename));
-    }
-    else {
-        return undef;
-    }
-}
-
-sub target {
-    my $self = shift;
-
-    if (my $target = $self->readlink) {
-        return Gat::Path->new(
-            filename => $target->absolute( $self->filename->parent ),
-        );
+    my $s = CORE::readlink($self->filename);
+    if (defined $s) {
+        return Gat::Path->new(filename => file($s)->absolute( $self->filename->parent ));
     }
     else {
         return undef;
@@ -180,40 +131,10 @@ sub chmod {
     File::chmod::chmod($mode, $self->filename);
 }
 
-sub _build_checksum {
-    my ($self) = @_;
-
-    if ($self->exists && $self->is_file) {
-        my $digest = Digest->new(GAT_HASH);
-        my $fh     = $self->openr;
-        $digest->addfile($fh);
-
-        return $digest->hexdigest;
-    }
-    else {
-        return undef;
-    }
-}
-
-sub _build_fileinfo {
-    my ($self) = @_;
-    lstat($self->filename);
-}
-
 sub _init_filename {
     my ( $self, $file, $set, $attr ) = @_;
-
-    my @dirs;
-    for my $dir ( File::Spec->splitdir( $file->stringify ) ) {
-        if ( $dir eq '..' ) {
-            pop @dirs if @dirs;
-        }
-        else {
-            push @dirs, $dir;
-        }
-    }
-
-    return $set->( Path::Class::File->new(@dirs) );
+    
+    $set->( cleanup_filename($file) );
 }
 
 __PACKAGE__->meta->make_immutable;

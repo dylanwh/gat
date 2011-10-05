@@ -65,6 +65,7 @@ sub BUILD {
             parameters   => { rules => { optional => 1 } },
         );
         typemap 'Gat::Path::Stream' => infer;
+
         typemap 'Gat::Repository' => infer(
             dependencies => wire_names(qw[ asset_dir attach_method ])
         );
