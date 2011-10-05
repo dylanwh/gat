@@ -69,6 +69,13 @@ before 'copy', 'link', 'move', 'symlink' => sub {
     $dest->mkpath if $self->stat;
 };
 
+sub to_label {
+    my $self = shift;
+    my ($base_dir) = pos_validated_list(\@_, { isa => AbsoluteDir });
+
+    return Gat::Label->new( $self->filename->relative( $base_dir ));
+}
+
 sub mkpath {
     my $self = shift;
 
