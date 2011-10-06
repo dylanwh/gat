@@ -5,6 +5,7 @@ use Test::More;
 use Test::Exception;
 
 use ok 'Gat::Path::Sieve';
+use ok 'Gat::Path::Sieve::Util' => 'parse_rule';
 use ok 'Gat::Path';
 
 my $sieve = Gat::Path::Sieve->new(
@@ -32,7 +33,7 @@ ok(!$sieve->match($passwd));
 ok(!$sieve->match($config));
 ok(!$sieve->match($asset));
 
-$sieve->parse_rule('!*');
+$sieve->add_rule( parse_rule('!*') );
 
 ok(!$sieve->match($footxt));
 

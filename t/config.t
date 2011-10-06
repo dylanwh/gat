@@ -17,6 +17,4 @@ $config->store($root->file('config'));
 my $config2 = Gat::Config->load($root->file('config'));
 is($config2->digest_type, 'SHA1');
 
-fail;
-
 done_testing;

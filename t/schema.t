@@ -25,16 +25,4 @@ is($label->asset->checksum, "foo");
 
 is($schema->resultset('Asset')->find({checksum => 'foo'})->labels->first->filename, $label->filename);
 
-diag $label->filename;
-
-my $label2 = $schema->resultset('Label')->create(
-    { asset => $asset, filename => 'foo\\baz' }
-);
-
-diag $label2->filename;
-
-my $foo = Gat::Schema::Result::Label->new( { filename => 'foo/bar' } );
-
-$schema->resultset('Label')->add($foo);
-
 done_testing;

@@ -15,15 +15,18 @@ use CHI;
 my @repos = (
     Gat::Repository::FS::Copy->new(
         asset_dir     => $root->subdir('copy')->subdir('.gat'),
+        digest_type   => 'MD5',
         cache         => CHI->new( driver => 'Memory', global => 1 ),
     ),
     Gat::Repository::FS::Link->new(
         asset_dir     => $root->subdir('link')->subdir('.gat'),
+        digest_type   => 'MD5',
         cache         => CHI->new( driver => 'Memory', global => 1 ),
     ),
 
     Gat::Repository::FS::Symlink->new(
         asset_dir     => $root->subdir('symlink')->subdir('.gat'),
+        digest_type   => 'MD5',
         cache         => CHI->new( driver => 'Memory', global => 1 ),
     ),
 );
