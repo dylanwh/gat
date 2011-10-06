@@ -19,15 +19,6 @@ with 'Gat::Repository';
 
 sub init { shift->asset_dir->mkpath }
 
-sub detach {
-    my $self = shift;
-    my ($path, $asset) = pos_validated_list(\@_, { isa => Path }, { isa => Asset });
-
-    if ($self->is_attached($path, $asset)) {
-        $path->unlink; # path must exist of ->is_attached() returned true.
-    }
-}
-
 sub remove {
     my $self       = shift;
     my ($asset)    = pos_validated_list( \@_, { isa => Asset } );

@@ -28,12 +28,21 @@ has 'file_mmagic' => (
     lazy    => 1,
 );
 
-requires qw[ init store remove attach detach is_attached clone is_stored ];
+requires qw[ init store remove attach is_attached clone is_stored ];
 
 # init()
 # store(Path $path) -> Asset
 # attach(Path $path, Asset $asset)
 # detach(Path $path, Asset $asset)
+sub detach {
+    my $self = shift;
+    my ($path, $asset) = pos_validated_list(\@_, { isa => Path }, { isa => Asset });
+
+    if ($self->is_attached($path, $asset)) {
+        $path->unlink; # path must exist of ->is_attached() returned true.
+    }
+}
+
 # is_attached(Path $path, Asset $asset)
 # remove(Asset $asset)
 # is_stored(Asset $asset) -> Bool
@@ -69,12 +78,6 @@ sub get_asset {
             );
         }
     );
-}
-
-sub ensure_asset {
-    my $self = shift;
-    my ($asset) = pos_validated_list( \@_, { isa => Asset } );
-
 }
 
 1;

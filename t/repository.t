@@ -48,35 +48,41 @@ if ($ENV{AWS_SECRET_ACCESS_KEY}) {
 use YAML::XS;
 
 foreach my $repo (@repos) {
+    my $dir = $repo->does('Gat::Repository::FS')
+            ? $repo->asset_dir->parent
+            : $root->subdir((split(/::/, ref $repo))[-1]);
+
+    $dir->mkpath;
     $repo->init;
-    my $foo = Gat::Path->new($repo->asset_dir->parent->file('foo.txt'));
-    my $bar = Gat::Path->new($repo->asset_dir->parent->file('bar.txt'));
-    my $baz = Gat::Path->new($repo->asset_dir->parent->file('baz.txt'));
+    my $foo = Gat::Path->new($dir->file('foo.txt'));
+    my $bar = Gat::Path->new($dir->file('bar.txt'));
+    my $baz = Gat::Path->new($dir->file('baz.txt'));
 
     $foo->filename->openw->print("foo\n");
     $baz->filename->openw->print("foo\n");
 
     my $asset = $repo->store($foo);
-    ok($repo->is_attached($foo, $asset));
-    ok($repo->is_stored($asset));
+    ok($repo->is_attached($foo, $asset), 'attached after store');
+    ok($repo->is_stored($asset), 'stored after store');
 
     $repo->store($baz);
-    ok($repo->is_attached($baz, $asset));
+    ok($repo->is_attached($baz, $asset), 'attached after store');
 
     $repo->detach($foo, $asset);
-    ok(!$repo->is_attached($foo, $asset));
+    ok(!$repo->is_attached($foo, $asset), 'detached');
 
     $repo->attach($bar, $asset);
-    ok($repo->is_attached($bar, $asset));
+    ok($repo->is_attached($bar, $asset), 'attached after attach');
 
     $repo->attach($foo, $asset);
-    ok($repo->is_attached($foo, $asset));
+    ok($repo->is_attached($foo, $asset), 'duplicate attached');
 
-    is($foo->slurp, "foo\n");
-    is($bar->slurp, "foo\n");
-    is($baz->slurp, "foo\n");
+    is($foo->slurp, "foo\n", 'content check #1');
+    is($bar->slurp, "foo\n", 'content check #2');
+    is($baz->slurp, "foo\n", 'content check #3');
 
     $repo->remove($asset);
+    ok(!$repo->is_stored($asset), 'removed');
     ok(!$repo->is_attached($foo, $asset), "able to remove asset from repo");
     ok(!$repo->is_attached($bar, $asset), "able to remove asset from repo");
 }
