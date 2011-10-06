@@ -1,8 +1,9 @@
 package Gat::Repository::FS::Link;
-use Moose;
+use Gat::Moose;
 use namespace::autoclean;
 
 use Gat::Path;
+use Gat::Asset;
 use Gat::Types ':all';
 use MooseX::Params::Validate;
 use MooseX::Types::Moose ':all';
@@ -11,20 +12,25 @@ with 'Gat::Repository::FS';
 
 sub store {
     my $self = shift;
-    my ($path)     = pos_validated_list(\@_, { isa => Path });
+    my ($path) = pos_validated_list( \@_, { isa => Path } );
     my $stat       = $path->stat or die "$path does not exist";
     my $checksum   = $self->get_digest($path);
     my $asset_path = $self->_asset_path($checksum);
     my $asset_stat = $asset_path->stat;
 
     die "$path is not regular file" unless -f $stat;
-    
-    unless ($asset_stat && -f $asset_stat) {
+
+    unless ( $asset_stat && -f $asset_stat ) {
         $path->chmod('a-w');
         $path->link($asset_path);
     }
 
-    return ($stat, $checksum) 
+    return Gat::Asset->new(
+        mtime    => $stat->mtime,
+        size     => $stat->size,
+        checksum => $checksum,
+    );
+
 }
 
 sub attach {

@@ -1,5 +1,5 @@
 package Gat::Cmd;
-use Moose;
+use Gat::Moose;
 use namespace::autoclean;
 
 use Gat;

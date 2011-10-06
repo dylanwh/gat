@@ -1,5 +1,5 @@
 package Gat::Error;
-use Moose;
+use Gat::Moose;
 extends 'Throwable::Error';
 
 1;

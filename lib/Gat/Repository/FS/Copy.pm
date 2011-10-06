@@ -1,8 +1,9 @@
 package Gat::Repository::FS::Copy;
-use Moose;
+use Gat::Moose;
 use namespace::autoclean;
 
 use Gat::Path;
+use Gat::Asset;
 use Gat::Types ':all';
 use MooseX::Params::Validate;
 use MooseX::Types::Moose ':all';
@@ -24,7 +25,11 @@ sub store {
         $path->copy($asset_path);
     }
 
-    return ($stat, $checksum) 
+    return Gat::Asset->new(
+        mtime    => $stat->mtime,
+        size     => $stat->size,
+        checksum => $checksum,
+    );
 }
 
 sub attach {

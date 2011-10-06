@@ -1,42 +1,34 @@
 package Gat::Config;
-use Moose;
+use Gat::Moose;
+use MooseX::StrictConstructor;
 use namespace::autoclean;
 
-use Carp;
-use File::Basename;
+use MooseX::Storage;
+use MooseX::Types::Moose ':all';
 
-use Path::Class;
-use Gat::Types 'AbsoluteDir';
-
-extends 'Config::GitLike';
-
-has 'confname' => ( is => 'ro', isa => 'Str', default => 'config' );
-
-has 'base_dir' => (
-    is       => 'ro',
-    isa      => AbsoluteDir,
-    required => 1,
+with Storage(
+    format => [ JSONpm => { json_opts => { pretty => 1 } } ],
+    io     => 'File',
 );
 
-sub BUILD {
-    my $self = shift;
+has 'digest_type' => (
+    is      => 'rw',
+    isa     => Str,
+    default => 'MD5',
+);
 
-    $self->load($self->base_dir);
-}
+has 'format' => (
+    is      => 'rw',
+    isa     => Str,
+    default => 'FS::Link',
+);
 
-sub dir_file {
-    my ($self) = @_;
+around ['store', 'load'] => sub {
+    my ($method, $self, $file) = @_;
+    $self->$method("$file");
+};
 
-    return '.gat/config';
-}
-
-sub load_dirs {
-    my ($self, $path) = @_;
-    croak "$path required!\n" unless $path;
-
-    my $file = dir($path)->file( $self->dir_file );
-    $self->load_file( $file );
-}
+sub init { $_[0]->new->store($_[1]) }
 
 __PACKAGE__->meta->make_immutable;
 1;

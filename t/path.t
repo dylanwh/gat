@@ -16,7 +16,7 @@ my $foo = Gat::Path->new( $root->file('pants') );
 $foo->touch;
 is($foo->digest('MD5'), 'd41d8cd98f00b204e9800998ecf8427e');
 is($foo->slurp, "");
-is($foo->to_label($root)->name, 'pants');
+is($foo->to_label($root), 'pants');
 is($foo->to_label($root)->to_path($root), $foo);
 
 done_testing;

@@ -6,9 +6,9 @@ use Gat::Types ':all';
 use MooseX::Params::Validate;
 
 has 'digest_type' => (
-    is      => 'ro',
-    isa     => 'Str',
-    default => 'MD5',
+    is       => 'ro',
+    isa      => 'Str',
+    required => 1,
 );
 
 # digests are cached
@@ -18,8 +18,9 @@ has 'cache' => (
     required => 1,
 );
 
-requires qw[ store remove attach detach is_attached export ];
+requires qw[ init store remove attach detach is_attached export ];
 
+# init()
 # store(Path $path) -> (FileStat, Checksum)
 # attach(Path $path, Checksum $checksum)
 # detach(Path $path, Checksum $checksum)

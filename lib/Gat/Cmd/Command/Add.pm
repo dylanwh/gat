@@ -1,7 +1,6 @@
 package Gat::Cmd::Command::Add;
-use Moose;
+use Gat::Moose;
 use namespace::autoclean;
-use Gat::FileStream;
 
 extends 'Gat::Cmd::Command';
 
@@ -13,18 +12,20 @@ has 'force' => (
 
 sub execute {
     my ( $self, $opt, $files ) = @_;
-    my $gat = Gat->new(
-        work_dir => $self->work_dir->absolute,
-    );
 
-    $gat->check_workspace;
-
-    my $stream = $gat->resolve(
-        type       => 'Gat::FileStream',
-        parameters => { files => $files },
-    );
-
-    $gat->add( files => $stream, verbose => $self->verbose, force => $self->force );
+    my $c      = $self->container;
+    my $stream = $c->path_stream($files);
+    my $repo   = $c->repository;
+    my $model  = $c->model;
+    
+    until ( $stream->is_done ) {
+        foreach my $path ( $stream->items ) {
+            my $asset = $repo->store($path);
+            $model->bind(
+                $path->to_label( $c->base_dir ) => $asset
+            );
+        }
+    }
 }
 
 __PACKAGE__->meta->make_immutable;

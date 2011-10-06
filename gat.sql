@@ -10,7 +10,7 @@ CREATE TABLE asset (
 CREATE TABLE label (
 	id       INTEGER PRIMARY KEY,
 	asset    INTEGER NOT NULL REFERENCES asset (id),
-	filename TEXT NOT NULL UNIQUE
+	filename TEXT NOT NULL UNIQUE,
 );
 
 CREATE TABLE attribute (

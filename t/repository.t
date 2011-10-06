@@ -30,13 +30,15 @@ my @repos = (
 use YAML::XS;
 
 foreach my $repo (@repos) {
-    $repo->asset_dir->mkpath;
+    $repo->init;
     my $foo = Gat::Path->new($repo->asset_dir->parent->file('foo.txt'));
     my $bar = Gat::Path->new($repo->asset_dir->parent->file('bar.txt'));
 
     $foo->filename->openw->print("foo\n");
 
-    my ($stat, $checksum) = $repo->store($foo);
+    #my ($stat, $checksum) =
+    my $asset = $repo->store($foo);
+    my $checksum = $asset->checksum;
     ok($repo->is_attached($foo, $checksum));
 
     $repo->detach($foo, $checksum);

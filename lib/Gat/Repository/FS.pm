@@ -17,6 +17,8 @@ has 'asset_dir' => (
 
 with 'Gat::Repository';
 
+sub init { shift->asset_dir->mkpath }
+
 sub detach {
     my $self = shift;
     my ($path, $checksum) = pos_validated_list(\@_, { isa => Path }, { isa => Checksum });

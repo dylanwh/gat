@@ -1,5 +1,5 @@
 package Gat::Rules;
-use Moose;
+use Gat::Moose;
 use feature 'switch';
 use namespace::autoclean;
 
