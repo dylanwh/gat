@@ -20,7 +20,11 @@ sub store {
 
     die "$path is not regular file" unless -f $stat;
 
-    unless ( $asset_stat && -f $asset_stat ) {
+    if ( $asset_stat && -f $asset_stat ) {
+        $path->unlink;
+        $asset_path->link( $path );
+    }
+    else {
         $path->chmod('a-w');
         $path->link($asset_path);
     }

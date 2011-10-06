@@ -36,13 +36,17 @@ foreach my $repo (@repos) {
     $repo->init;
     my $foo = Gat::Path->new($repo->asset_dir->parent->file('foo.txt'));
     my $bar = Gat::Path->new($repo->asset_dir->parent->file('bar.txt'));
+    my $baz = Gat::Path->new($repo->asset_dir->parent->file('baz.txt'));
 
     $foo->filename->openw->print("foo\n");
+    $baz->filename->openw->print("foo\n");
 
-    #my ($stat, $checksum) =
     my $asset = $repo->store($foo);
     my $checksum = $asset->checksum;
     ok($repo->is_attached($foo, $checksum));
+
+    $repo->store($baz);
+    ok($repo->is_attached($baz, $checksum));
 
     $repo->detach($foo, $checksum);
     ok(!$repo->is_attached($foo, $checksum));
@@ -55,11 +59,11 @@ foreach my $repo (@repos) {
 
     is($foo->slurp, "foo\n");
     is($bar->slurp, "foo\n");
+    is($baz->slurp, "foo\n");
 
     $repo->remove($checksum);
     ok(!$repo->is_attached($foo, $checksum), "able to remove asset from repo");
     ok(!$repo->is_attached($bar, $checksum), "able to remove asset from repo");
-
 }
 
 done_testing;
