@@ -37,7 +37,7 @@ sub remove {
     $asset_path->unlink;
 }
 
-sub export {
+sub clone {
     my $self = shift;
 
     my ($checksum) = pos_validated_list(\@_, { isa => Checksum });

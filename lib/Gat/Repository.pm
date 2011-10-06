@@ -18,7 +18,7 @@ has 'cache' => (
     required => 1,
 );
 
-requires qw[ init store remove attach detach is_attached export ];
+requires qw[ init store remove attach detach is_attached clone ];
 
 # init()
 # store(Path $path) -> (FileStat, Checksum)
@@ -26,7 +26,7 @@ requires qw[ init store remove attach detach is_attached export ];
 # detach(Path $path, Checksum $checksum)
 # is_attached(Path $path, Checksum $checksum)
 # remove(Checksum $checksum)
-# export(Checksum $checksum) -> Path
+# clone(Checksum $checksum) -> Path -- for editing files
 
 # get_digest(Path $path) -> Checksum
 sub get_digest {
