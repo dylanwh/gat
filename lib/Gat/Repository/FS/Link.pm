@@ -30,11 +30,10 @@ sub store {
     }
 
     return Gat::Asset->new(
+        checksum => $checksum,
         mtime    => $stat->mtime,
         size     => $stat->size,
-        checksum => $checksum,
     );
-
 }
 
 sub attach {
@@ -44,7 +43,7 @@ sub attach {
     my $asset_path = $self->_asset_path($checksum);
     my $asset_stat = $asset_path->stat;
 
-    die "asset does not exist: $checksum" unless $asset_path->exists;
+    die "asset does not exist: $checksum" unless $asset_stat;
     return if $self->_stats_eq($stat, $asset_stat); # attached.
     
     $asset_path->link($path);
