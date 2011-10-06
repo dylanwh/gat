@@ -11,14 +11,11 @@ use MooseX::Types::Moose ':all';
 with 'Gat::Repository::FS';
 
 sub store {
-    my $self = shift;
-    my ($path) = pos_validated_list( \@_, { isa => Path } );
-    my $stat       = $path->stat or die "$path does not exist";
-    my $checksum   = $self->get_digest($path);
-    my $asset_path = $self->_asset_path($checksum);
+    my $self       = shift;
+    my ($path)     = pos_validated_list( \@_, { isa => Path } );
+    my $asset      = $self->get_asset($path);
+    my $asset_path = $self->_asset_path( $asset->checksum );
     my $asset_stat = $asset_path->stat;
-
-    die "$path is not regular file" unless -f $stat;
 
     if ( $asset_stat && -f $asset_stat ) {
         $path->unlink;
@@ -29,21 +26,17 @@ sub store {
         $path->link($asset_path);
     }
 
-    return Gat::Asset->new(
-        checksum => $checksum,
-        mtime    => $stat->mtime,
-        size     => $stat->size,
-    );
+    return $asset;
 }
 
 sub attach {
     my $self = shift;
-    my ( $path, $checksum ) = pos_validated_list( \@_, { isa => Path }, { isa => Checksum } );
+    my ( $path, $asset ) = pos_validated_list( \@_, { isa => Path }, { isa => Asset } );
     my $stat       = $path->stat;
-    my $asset_path = $self->_asset_path($checksum);
+    my $asset_path = $self->_asset_path($asset->checksum);
     my $asset_stat = $asset_path->stat;
 
-    die "asset does not exist: $checksum" unless $asset_stat;
+    die "asset does not exist: $asset" unless $asset_stat;
     return if $self->_stats_eq($stat, $asset_stat); # attached.
     
     $asset_path->link($path);
@@ -51,8 +44,8 @@ sub attach {
 
 sub is_attached {
     my $self = shift;
-    my ( $path, $checksum ) = pos_validated_list( \@_, { isa => Path }, { isa => Checksum } );
-    my $asset_path = $self->_asset_path($checksum);
+    my ( $path, $asset ) = pos_validated_list( \@_, { isa => Path }, { isa => Asset } );
+    my $asset_path = $self->_asset_path($asset->checksum);
 
     return $self->_stats_eq( $path->stat, $asset_path->stat );
 }

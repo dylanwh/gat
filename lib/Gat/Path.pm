@@ -76,18 +76,6 @@ sub to_label {
     return Gat::Label->new( $self->filename->relative( $base_dir ));
 }
 
-sub to_asset {
-    my $self = shift;
-    my ($digest_type) = pos_validated_list(\@_, { isa => Str });
-
-    my $stat = $self->stat or return undef;
-    return Gat::Asset->new(
-        size     => $stat->size,
-        mtime    => $stat->mtime,
-        checksum => $self->digest($digest_type)
-    );
-}
-
 sub mkpath {
     my $self = shift;
 

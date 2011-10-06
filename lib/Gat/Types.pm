@@ -33,10 +33,14 @@ class_type  'Gat::Schema';
 coerce Label, from 'Gat::Schema::Result::Label', 
     via { Gat::Label->new($_->filename) };
 
-coerce Asset, from 'Gat::Schema::Result::Asset',
-    via {
-        Gat::Asset->new( checksum => $_->checksum, mtime => $_->mtime, size => $_->size )
-    };
+coerce Asset, from 'Gat::Schema::Result::Asset', via {
+    Gat::Asset->new(
+        checksum     => $_->checksum,
+        mtime        => $_->mtime,
+        size         => $_->size,
+        content_type => $_->content_type,
+    );
+};
 
 subtype Checksum, as Str, where { /^[0-9A-Fa-f]{3,}$/ };
 

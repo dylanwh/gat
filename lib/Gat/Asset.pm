@@ -25,6 +25,12 @@ has 'mtime' => (
     coerce   => 1,
 );
 
+has 'content_type' => (
+    is      => 'ro',
+    isa     => 'Str',
+    default => 'application/octet-stream',
+);
+
 __PACKAGE__->meta->make_immutable;
 
 1;

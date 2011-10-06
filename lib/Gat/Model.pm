@@ -29,9 +29,10 @@ sub bind {
 
     my $db_asset = $self->_assets->find_or_create(
         {   
-            checksum => $asset->checksum,
-            mtime    => $asset->mtime,
-            size     => $asset->size
+            checksum     => $asset->checksum,
+            mtime        => $asset->mtime,
+            size         => $asset->size,
+            content_type => $asset->content_type,
         },
     );
     my $db_label = $db_asset->labels->find_or_create(
@@ -52,11 +53,7 @@ sub find_asset {
 
     my $db_asset = $self->_labels->find( { filename => $label->filename } )->asset;
 
-    return Gat::Asset->new(
-        checksum => $db_asset->checksum,
-        mtime    => $db_asset->mtime,
-        size     => $db_asset->size,
-    );
+    return to_Asset($db_asset);
 }
 
 sub find_labels {

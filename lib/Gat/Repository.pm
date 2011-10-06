@@ -3,7 +3,10 @@ use Moose::Role;
 use namespace::autoclean;
 
 use Gat::Types ':all';
+use MooseX::Types;
 use MooseX::Params::Validate;
+
+use Gat::Asset;
 
 has 'digest_type' => (
     is       => 'ro',
@@ -18,23 +21,38 @@ has 'cache' => (
     required => 1,
 );
 
-requires qw[ init store remove attach detach is_attached clone ];
+has 'file_mmagic' => (
+    is      => 'ro',
+    isa     => duck_type( ['checktype_filename'] ),
+    default => sub { require File::MMagic; File::MMagic->new },
+    lazy    => 1,
+);
+
+requires qw[ init store remove attach detach is_attached clone is_stored ];
 
 # init()
-# store(Path $path) -> (FileStat, Checksum)
-# attach(Path $path, Checksum $checksum)
-# detach(Path $path, Checksum $checksum)
-# is_attached(Path $path, Checksum $checksum)
-# remove(Checksum $checksum)
-# clone(Checksum $checksum) -> Path -- for editing files
+# store(Path $path) -> Asset
+# attach(Path $path, Asset $asset)
+# detach(Path $path, Asset $asset)
+# is_attached(Path $path, Asset $asset)
+# remove(Asset $asset)
+# is_stored(Asset $asset) -> Bool
+# clone(Asset $asset) -> Path -- for editing files
 
-# get_digest(Path $path) -> Checksum
-sub get_digest {
+# get_asset(Path $path) -> Asset
+sub get_asset { 
     my $self = shift;
     my ($path) = pos_validated_list( \@_, { isa => Path } );
 
+    my $mm   = $self->file_mmagic;
+    my $dt   = $self->digest_type;
+    my $stat = $path->stat;
+
+    die "$path does not exist"      unless $stat;
+    die "$path is not regular file" unless -f $stat;
+
     return $self->cache->compute(
-        [ 'digest', $path->stringify ],
+        [ 'asset', $path->stringify ],
         {   
             expires_in => '1min',
             expire_if  => sub {
@@ -42,8 +60,21 @@ sub get_digest {
                 return !$stat || $_[0]->created_at < $path->stat->mtime;
             },
         },
-        sub { $path->digest( $self->digest_type ) }
+        sub {
+            Gat::Asset->new(
+                content_type => $mm->checktype_filename( $path->filename ),
+                checksum     => $path->digest($dt),
+                mtime        => $stat->mtime,
+                size         => $stat->size,
+            );
+        }
     );
+}
+
+sub ensure_asset {
+    my $self = shift;
+    my ($asset) = pos_validated_list( \@_, { isa => Asset } );
+
 }
 
 1;
