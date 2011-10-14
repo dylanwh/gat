@@ -7,30 +7,49 @@ use Gat::Container;
 extends 'Gat::Cmd::Command';
 
 has 'format' => (
+    traits      => ['Getopt'],
+    is          => 'ro',
+    isa         => 'Str',
+    cmd_aliases => 'F',
+    default     => 'FS::Link',
+);
+
+has 'format_option' => (
+    traits    => ['Getopt'],
     is        => 'ro',
-    isa       => 'Str',
-    predicate => 'has_format',
+    isa       => 'HashRef[Str]',
+    cmd_aliases => 'o',
+    default => sub { +{} },
 );
 
 has 'digest_type' => (
     is        => 'ro',
     isa       => 'Str',
-    predicate => 'has_digest_type',
+    default   => 'MD5',
 );
 
 sub execute {
     my ( $self, $opt ) = @_;
 
-    my $c = $self->container;
-    $c->resolve(service => 'gat_dir')->mkpath;
+    my $gat = $self->gat;
+    $gat->gat_dir->mkpath;
 
-    my $config = $c->config;
-    $config->format( $self->format )           if $self->has_format;
-    $config->digest_type( $self->digest_type ) if $self->has_digest_type;
-    $config->store( $c->resolve( service => 'config_file' ) );
+    my $config = $gat->config;
+    $config->set(
+        key   => 'asset_factory.digest_type',
+        value => $self->digest_type,
+    );
 
-    $c->model->init;
-    $c->repository->init;
+    $config->set_hash(
+        key   => 'repository',
+        value => {
+            format => $self->format,
+            %{ $self->format_option },
+        },
+    );
+
+    $gat->model->init;
+    $gat->repository->init;
 }
 
 __PACKAGE__->meta->make_immutable;

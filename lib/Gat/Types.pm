@@ -4,6 +4,7 @@ use MooseX::Types -declare => [
         Path
         Label
         Asset
+        AssetMD5
         PathStream
         FileStat
 
@@ -26,9 +27,15 @@ class_type FileStat,     { class => 'File::stat'        };
 class_type Label,        { class => 'Gat::Label'         };
 class_type Asset,        { class => 'Gat::Asset'         };
 
-class_type  'Gat::Schema::Result::Label';
-class_type  'Gat::Schema::Result::Asset';
-class_type  'Gat::Schema';
+subtype AssetMD5,
+    as Asset,
+    where { $_->digest_type eq 'MD5' },
+    message {"Asset digest_type must be MD5!"};
+
+class_type 'Gat::Schema::Result::Label';
+class_type 'Gat::Schema::Result::Asset';
+class_type 'Gat::Schema';
+class_type 'File::MMagic';
 
 coerce Label, from 'Gat::Schema::Result::Label', 
     via { Gat::Label->new($_->filename) };
@@ -39,6 +46,7 @@ coerce Asset, from 'Gat::Schema::Result::Asset', via {
         mtime        => $_->mtime,
         size         => $_->size,
         content_type => $_->content_type,
+        digest_type  => $_->digest_type,
     );
 };
 

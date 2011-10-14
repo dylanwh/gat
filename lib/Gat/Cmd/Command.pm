@@ -8,17 +8,19 @@ use Gat::Util 'find_base_dir';
 extends qw(MooseX::App::Cmd::Command);
 with 'MooseX::Getopt::Dashes';
 
-has 'container' => (
+use Gat;
+
+has 'gat' => (
     is      => 'ro',
-    isa     => 'Gat::Container',
-    builder => '_build_container',
+    isa     => 'Gat',
+    builder => '_build_gat',
     lazy    => 1,
 );
 
-sub _build_container {
+sub _build_gat {
     my $self = shift;
 
-    return Gat::Container->new(
+    return Gat->new(
         base_dir => find_base_dir( $self->work_dir->absolute ),
         work_dir => $self->work_dir->absolute,
     );

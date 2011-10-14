@@ -8,16 +8,20 @@ use MooseX::Params::Validate;
 use Gat::Types ':all';
 use Gat::Path;
 
+# Invariant: asset dir is always 'asset' under the .gat dir
 has 'asset_dir' => (
     is       => 'ro',
     isa      => AbsoluteDir,
-    coerce   => 1,
-    required => 1,
+    init_arg => undef,
+    lazy     => 1,
+    default  => sub { $_[0]->gat_dir->subdir('asset') },
 );
 
-with 'Gat::Repository';
+with 'Gat::Repository::API';
 
-sub init { shift->asset_dir->mkpath }
+sub init {
+    shift->asset_dir->mkpath
+}
 
 sub remove {
     my $self       = shift;
@@ -44,7 +48,7 @@ sub clone {
     return $tmp_path;
 }
 
-sub is_stored {
+sub is_valid {
     my $self       = shift;
     my ($asset)    = pos_validated_list(\@_, { isa => Asset });
     

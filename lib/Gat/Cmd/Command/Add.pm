@@ -13,16 +13,18 @@ has 'force' => (
 sub execute {
     my ( $self, $opt, $files ) = @_;
 
-    my $c      = $self->container;
-    my $stream = $c->path_stream($files);
-    my $repo   = $c->repository;
-    my $model  = $c->model;
+    my $gat    = $self->gat;
+    my $stream = $gat->path_stream($files);
+    my $repo   = $gat->repository;
+    my $model  = $gat->model;
+    my $factory = $gat->asset_factory;
     
     until ( $stream->is_done ) {
         foreach my $path ( $stream->items ) {
-            my $asset = $repo->store($path);
+            my $asset = $factory->get_asset($path);
+            $repo->add($path, $asset);
             $model->bind(
-                $path->to_label( $c->base_dir ) => $asset
+                $path->to_label( $gat->base_dir ) => $asset
             );
         }
     }

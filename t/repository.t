@@ -5,52 +5,54 @@ use Test::More;
 use Test::TempDir;
 use Test::Exception;
 
+use CHI;
+use File::MMagic;
+use YAML::XS;
+
+use ok 'Gat::Repository';
 use ok 'Gat::Repository::FS::Copy';
 use ok 'Gat::Repository::FS::Link';
 use ok 'Gat::Repository::FS::Symlink';
 use ok 'Gat::Repository::S3';
+use ok 'Gat::Asset::Factory';
 
 my $root = temp_root()->absolute;
-use CHI;
+
+my $factory = Gat::Asset::Factory->new(
+    digest_type => 'MD5',
+    file_mmagic => File::MMagic->new,
+    cache       => CHI->new( driver => 'Memory', global => 1 ),
+);
 
 my @repos = (
-    Gat::Repository::FS::Link->new(
-        asset_dir   => $root->subdir('link')->subdir('.gat'),
-        digest_type => 'MD5',
-        cache       => CHI->new( driver => 'Memory', global => 1 ),
+    Gat::Repository->new(
+        format => 'FS::Link',
+        gat_dir   => $root->subdir('link')->subdir('.gat'),
     ),
-
-    Gat::Repository::FS::Copy->new(
-        asset_dir     => $root->subdir('copy')->subdir('.gat'),
-        digest_type   => 'MD5',
-        cache         => CHI->new( driver => 'Memory', global => 1 ),
+    Gat::Repository->new(
+        format => 'FS::Copy',
+        gat_dir   => $root->subdir('copy')->subdir('.gat'),
     ),
- 
-
-    Gat::Repository::FS::Symlink->new(
-        asset_dir     => $root->subdir('symlink')->subdir('.gat'),
-        digest_type   => 'MD5',
-        cache         => CHI->new( driver => 'Memory', global => 1 ),
+    Gat::Repository->new(
+        format => 'FS::Symlink',
+        gat_dir   => $root->subdir('symlink')->subdir('.gat'),
     ),
 );
 
-if ($ENV{AWS_SECRET_ACCESS_KEY}) {
-    push @repos, Gat::Repository::S3->new(
-        aws_secret_access_key => $ENV{AWS_SECRET_ACCESS_KEY},
-        aws_access_key_id     => $ENV{AWS_ACCESS_KEY_ID},
-        bucket_name           => $ENV{S3_BUCKET_NAME},
-        digest_type           => 'MD5',
-        cache                 => CHI->new( driver => 'Memory', global => 1 ),
+if ( $ENV{AWS_SECRET_ACCESS_KEY} ) {
+    push @repos, Gat::Repository->new(
+        format => 'S3',
+        format_args => {
+            bucket_name           => $ENV{S3_BUCKET_NAME},
+            aws_secret_access_key => $ENV{AWS_SECRET_ACCESS_KEY},
+            aws_access_key_id     => $ENV{AWS_ACCESS_KEY_ID},
+        },
+        gat_dir               => $root->subdir('s3')->subdir('.gat'),
     );
 }
 
-
-use YAML::XS;
-
 foreach my $repo (@repos) {
-    my $dir = $repo->does('Gat::Repository::FS')
-            ? $repo->asset_dir->parent
-            : $root->subdir((split(/::/, ref $repo))[-1]);
+    my $dir = $repo->gat_dir->parent;
 
     $dir->mkpath;
     $repo->init;
@@ -61,12 +63,14 @@ foreach my $repo (@repos) {
     $foo->filename->openw->print("foo\n");
     $baz->filename->openw->print("foo\n");
 
-    my $asset = $repo->store($foo);
-    ok($repo->is_attached($foo, $asset), 'attached after store');
-    ok($repo->is_stored($asset), 'stored after store');
+    my $asset = $factory->get_asset($foo);
 
-    $repo->store($baz);
-    ok($repo->is_attached($baz, $asset), 'attached after store');
+    $repo->add($foo, $asset);
+    ok($repo->is_attached($foo, $asset), 'attached after add');
+    ok($repo->is_valid($asset), 'valid after add');
+
+    $repo->add($baz, $factory->get_asset($baz));
+    ok($repo->is_attached($baz, $asset), 'attached after add');
 
     $repo->detach($foo, $asset);
     ok(!$repo->is_attached($foo, $asset), 'detached');
@@ -82,7 +86,7 @@ foreach my $repo (@repos) {
     is($baz->slurp, "foo\n", 'content check #3');
 
     $repo->remove($asset);
-    ok(!$repo->is_stored($asset), 'removed');
+    ok(!$repo->is_valid($asset), 'removed');
     ok(!$repo->is_attached($foo, $asset), "able to remove asset from repo");
     ok(!$repo->is_attached($bar, $asset), "able to remove asset from repo");
 }

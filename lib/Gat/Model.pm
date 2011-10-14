@@ -33,6 +33,7 @@ sub bind {
             mtime        => $asset->mtime,
             size         => $asset->size,
             content_type => $asset->content_type,
+            digest_type  => $asset->digest_type,
         },
     );
     my $db_label = $db_asset->labels->find_or_create(

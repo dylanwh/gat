@@ -23,6 +23,7 @@ my $asset = Gat::Asset->new(
     checksum => 'f4d5239681818aa71abb02a52ccbb88d',
     mtime    => time,
     size     => 10,
+    digest_type => 'MD5',
 );
 
 my $path  = Gat::Path->new($root->file('dir/foo.txt'));

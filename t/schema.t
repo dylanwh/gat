@@ -13,6 +13,8 @@ my $asset = $schema->resultset('Asset')->create(
         checksum => 'foo',
         mtime    => time,
         size     => 10,
+        digest_type => 'MD5',
+        content_type => 'text/plain',
     }
 );
 

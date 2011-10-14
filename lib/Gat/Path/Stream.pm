@@ -16,7 +16,7 @@ use Gat::Path;
 has 'files' => (
     isa        => ArrayRef[Str|File|Dir],
     reader     => '_files',
-    lazy_build => 1,
+    required   => 1,
 );
 
 has 'work_dir' => (

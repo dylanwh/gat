@@ -10,10 +10,9 @@ use MooseX::Types::Moose ':all';
 
 with 'Gat::Repository::FS';
 
-sub store {
+sub add {
     my $self       = shift;
-    my ($path)     = pos_validated_list( \@_, { isa => Path } );
-    my $asset      = $self->get_asset($path);
+    my ($path, $asset)     = pos_validated_list( \@_, { isa => Path }, { isa => Asset } );
     my $asset_path = $self->_asset_path( $asset->checksum );
     my $asset_stat = $asset_path->stat;
 
@@ -26,8 +25,6 @@ sub store {
         $path->move($asset_path);
         $asset_path->symlink($path);
     }
-
-    return $asset;
 }
 
 sub attach {

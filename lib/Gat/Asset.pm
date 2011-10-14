@@ -12,6 +12,12 @@ has 'checksum' => (
     required => 1,
 );
 
+has 'digest_type' => (
+    is       => 'ro',
+    isa      => 'Str',
+    required => 1,
+);
+
 has 'size' => (
     is       => 'rw',
     isa      => Int,

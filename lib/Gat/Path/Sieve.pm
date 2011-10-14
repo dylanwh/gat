@@ -28,7 +28,7 @@ has 'rules' => (
     default => sub { [] },
 );
 
-has [ 'base_dir', 'gat_dir', 'asset_dir' ] => (
+has [ 'base_dir', 'gat_dir' ] => (
     is       => 'ro',
     isa      => AbsoluteDir,
     coerce   => 1,
@@ -53,10 +53,8 @@ sub _is_allowed {
 sub _is_valid {
     my ( $self, $file ) = @_;
 
-    return
-           $self->base_dir->subsumes($file)
-        && !$self->gat_dir->subsumes($file)
-        && !$self->asset_dir->subsumes($file);
+    return $self->base_dir->subsumes($file)
+        && !$self->gat_dir->subsumes($file);
 }
 
 __PACKAGE__->meta->make_immutable;
